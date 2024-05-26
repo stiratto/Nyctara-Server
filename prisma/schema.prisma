@@ -16,8 +16,20 @@ datasource db {
 model Product {
   id    String   @id @default(uuid())
   name  String
+  description String
+  notes String[]
   price String
   image String
-  brand String
   tags  String[]
+  imageUrl String?
+  category Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+}
+
+model Category {
+  id    String   @id @default(uuid())
+  category_name  String @unique
+  image String
+  imageUrl String?
+  products Product[]
 }
