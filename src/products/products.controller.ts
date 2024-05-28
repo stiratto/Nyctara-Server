@@ -55,12 +55,17 @@ export class ProductsController {
   }
 
   @Get(':id')
-  findOneProduct(@Param('id') id: string, createProductDto: CreateProductDto) {
-    return this.productsService.findSingleProduct(id, createProductDto);
+  findOneProduct(@Param('id') id: string) {
+    return this.productsService.findSingleProduct(id);
   }
   @Get('category/:id')
   findOneCategory(@Param('id') id: string) {
     return this.productsService.findSingleCategory(id);
+  }
+
+  @Get('cart/:id')
+  getCartImage(@Param('id') id: string) {
+    return this.productsService.getCartImage(id);
   }
 
   @Patch(':id')

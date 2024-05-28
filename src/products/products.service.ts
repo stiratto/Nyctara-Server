@@ -111,7 +111,7 @@ export class ProductsService {
               Connect is a prisma feature that allows you to connect a model to another model, for example, if you already have a category model, you can connect it to a product model and the product will be created with a category that already exists on the category table 
             */
             connect: {
-              category_name: createProductDto.category,
+              category_name: createProductDto.category.category_name,
             },
           },
           price: createProductDto.price,
@@ -120,6 +120,7 @@ export class ProductsService {
         },
       });
 
+      console.log(product);
       return product;
     } catch (err) {
       throw new InternalServerErrorException(
@@ -134,8 +135,6 @@ export class ProductsService {
 
   async createNewCategory(category_name: string, file: Express.Multer.File) {
     const newCategoryName = category_name['category_name'];
-
-    console.log(category_name, file);
 
     const fileExtName = extname(file.originalname);
 
@@ -185,7 +184,6 @@ export class ProductsService {
         const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
 
         category.imageUrl = url;
-        console.log(url);
       }
       return categories;
     } catch (err) {
@@ -211,8 +209,6 @@ export class ProductsService {
           },
         });
 
-        console.log(category);
-
         const getObjectParams = {
           Bucket: this.config.get<string>('amazon_s3.bucket_name'),
           Key: product.image,
@@ -234,11 +230,19 @@ export class ProductsService {
     }
   }
 
-  async findSingleProduct(id: string, createProductDto: CreateProductDto) {
+  async findSingleProduct(id: string) {
     try {
       const product = await this.prisma.product.findFirst({
         where: {
           id: id,
+        },
+        include: {
+          category: {
+            select: {
+              category_name: true,
+              id: true,
+            },
+          },
         },
       });
 
@@ -253,6 +257,33 @@ export class ProductsService {
       product.imageUrl = url;
 
       return product;
+    } catch (err) {
+      throw new InternalServerErrorException(
+        'Hubo un error: ' +
+          err.message +
+          '(status: ' +
+          (err.statusCode || 'desconocido') +
+          ')',
+      );
+    }
+  }
+
+  async getCartImage(id: string): Promise<string> {
+    const product = await this.prisma.product.findFirst({
+      where: {
+        id: id,
+      },
+    });
+
+    try {
+      const getObjectParams = {
+        Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+        Key: product.image,
+      };
+
+      const command = new GetObjectCommand(getObjectParams);
+      const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+      return url;
     } catch (err) {
       throw new InternalServerErrorException(
         'Hubo un error: ' +
@@ -391,7 +422,7 @@ export class ProductsService {
           name: updateProductDto.name,
           category: {
             connect: {
-              category_name: updateProductDto.category,
+              category_name: updateProductDto.category.category_name,
             },
           },
           image: command.input.Key,
