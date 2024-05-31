@@ -101,7 +101,6 @@ export class ProductsService {
         notesArray = rawNotes;
       }
 
-      console.log(createProductDto.category_name);
 
       const product = await this.prisma.product.create({
         data: {
@@ -119,7 +118,6 @@ export class ProductsService {
         },
       });
 
-      console.log(product);
       return product;
     } catch (err) {
       throw new InternalServerErrorException(
@@ -218,7 +216,6 @@ export class ProductsService {
 
         product.imageUrl = url;
         (product as any).category = category;
-        console.log(url);
       }
 
       return products;
