@@ -101,17 +101,16 @@ export class ProductsService {
         notesArray = rawNotes;
       }
 
+      console.log(createProductDto.category_name);
+
       const product = await this.prisma.product.create({
         data: {
           name: createProductDto.name,
           description: createProductDto.description,
           notes: notesArray,
           category: {
-            /* 
-              Connect is a prisma feature that allows you to connect a model to another model, for example, if you already have a category model, you can connect it to a product model and the product will be created with a category that already exists on the category table 
-            */
             connect: {
-              category_name: createProductDto.category.category_name,
+              category_name: createProductDto.category_name,
             },
           },
           price: createProductDto.price,

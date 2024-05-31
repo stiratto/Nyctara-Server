@@ -2,6 +2,7 @@ export class CreateProductDto {
   name: string;
   price: string;
   description: string;
+  category_name: string;
   category: {
     id: string;
     category_name: string;

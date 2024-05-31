@@ -6,10 +6,8 @@ import {
   Patch,
   Param,
   Delete,
-  Req,
   UseInterceptors,
   UploadedFile,
-  Res,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -47,11 +45,6 @@ export class ProductsController {
     @UploadedFile() image: Express.Multer.File,
   ) {
     return this.productsService.createItemPrisma(createProductDto, image);
-  }
-
-  @Get()
-  findAll() {
-    return this.productsService.findAllItemsPrisma();
   }
 
   @Get(':id')
