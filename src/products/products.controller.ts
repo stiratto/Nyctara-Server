@@ -96,8 +96,15 @@ export class ProductsController {
 
   // GET PRODUCTS BY LIMIT: /api/products/limit/:limit/:id
   @Get('limit/:limit/:id')
-  getProductsByLimit(@Param('limit') limit: string, @Param('id') id: string) {
-    return this.productsService.getProductsByLimit(limit, id);
+  getProductsByLimitExcludingOne(
+    @Param('limit') limit: string,
+    @Param('id') id: string,
+  ) {
+    return this.productsService.getProductsByLimitExcludingOne(limit, id);
+  }
+  @Get('limit/:limit')
+  getProductsByLimit(@Param('limit') limit: string) {
+    return this.productsService.getAllProductsByLimit(limit);
   }
 
   // DELETE IMAGE FROM PRODUCT: /api/products/image/:id/:image

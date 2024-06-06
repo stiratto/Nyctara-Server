@@ -510,7 +510,7 @@ export class ProductsService {
     }
   }
 
-  async getProductsByLimit(limit: string, id: string) {
+  async getProductsByLimitExcludingOne(limit: string, id: string) {
     try {
       const products = await this.prisma.product.findMany({
         where: {
@@ -519,6 +519,35 @@ export class ProductsService {
           },
         },
 
+        take: parseInt(limit),
+      });
+
+      const imagesUrls: string[] = [];
+
+      for (const product of products) {
+        for (const image of product.images) {
+          const getObjectParams = {
+            Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+            Key: image,
+          };
+
+          const command = new GetObjectCommand(getObjectParams);
+          const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+
+          imagesUrls.push(url);
+        }
+        product.imageUrl = imagesUrls;
+      }
+
+      return products;
+    } catch (err) {
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async getAllProductsByLimit(limit: string) {
+    try {
+      const products = await this.prisma.product.findMany({
         take: parseInt(limit),
       });
 
