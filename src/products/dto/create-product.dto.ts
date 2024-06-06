@@ -1,3 +1,8 @@
+export interface CustomFile {
+  originalname: string;
+  buffer: Buffer;
+}
+
 export class CreateProductDto {
   name: string;
   price: string;
@@ -9,5 +14,5 @@ export class CreateProductDto {
   };
   notes: string[] | string;
   tags: string[] | string;
-  image: string;
+  images: CustomFile[] | string;
 }

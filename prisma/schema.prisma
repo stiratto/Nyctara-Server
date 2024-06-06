@@ -19,9 +19,9 @@ model Product {
   description String
   notes String[]
   price String
-  image String
+  images String[]
   tags  String[]
-  imageUrl String?
+  imageUrl String[]
   category Category @relation(fields: [categoryId], references: [id])
   categoryId String
 }

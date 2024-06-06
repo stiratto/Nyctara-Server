@@ -8,11 +8,12 @@ import {
   Delete,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 
 @Controller('api/products')
 export class ProductsController {
@@ -21,6 +22,9 @@ export class ProductsController {
   /*
    CATEGORIES
   */
+
+  // CREATE NEW CATEGORY: /api/products/categories/create-category
+
   @Post('/create-category')
   @UseInterceptors(FileInterceptor('image'))
   createNewCategory(
@@ -30,58 +34,78 @@ export class ProductsController {
     return this.productsService.createNewCategory(category_name, image);
   }
 
+  // FIND ALL CATEGORIES: /api/products/categories
   @Get('/categories')
   findAllCategories() {
     return this.productsService.findAllCategories();
   }
 
-  /* 
-    PRODUCTS 
-  */
-  @Post('/create-post')
-  @UseInterceptors(FileInterceptor('image'))
-  create(
-    @Body() createProductDto: CreateProductDto,
-    @UploadedFile() image: Express.Multer.File,
-  ) {
-    return this.productsService.createItemPrisma(createProductDto, image);
-  }
-
-  @Get(':id')
-  findOneProduct(@Param('id') id: string) {
-    return this.productsService.findSingleProduct(id);
-  }
+  // FIND SINGLE CATEGORY: /api/products/category/:id
   @Get('category/:id')
   findOneCategory(@Param('id') id: string) {
     return this.productsService.findSingleCategory(id);
   }
 
+  @Delete('category/:id')
+  deleteCategory(@Param('id') id: string) {
+    return this.productsService.deleteCategory(id);
+  }
+
+  /* 
+    PRODUCTS 
+  */
+
+  // CREATE PRODUCT: /api/products/create-post
+  @Post('/create-post')
+  @UseInterceptors(FilesInterceptor('images'))
+  create(
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFiles() images: Express.Multer.File | string, // Use @UploadedFiles() for multiple files
+  ) {
+    return this.productsService.createItemPrisma(createProductDto, images);
+  }
+
+  // FIND SINGLE PRODUCT: /api/products/:id
+  @Get(':id')
+  findSingleProduct(@Param('id') id: string) {
+    return this.productsService.findSingleProduct(id);
+  }
+
+  // GET CART PRODUCT IMAGE: /api/products/cart/:id
   @Get('cart/:id')
   getCartImage(@Param('id') id: string) {
     return this.productsService.getCartImage(id);
   }
 
+  // UPDATE PRODUCT: /api/products/:id
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(FilesInterceptor('images'))
   update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
-    @UploadedFile() image: Express.Multer.File,
+    @UploadedFiles() images: Express.Multer.File | string,
   ) {
-    return this.productsService.updateProduct(id, updateProductDto, image);
+    return this.productsService.updateProduct(id, updateProductDto, images);
   }
 
+  // DELETE PRODUCT: /api/products/:id
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productsService.removeProduct(id);
   }
 
-  @Get('limit/:limit')
-  @UseInterceptors(FileInterceptor('image'))
-  getProductsByLimit(
-    @Param('limit') limit: string,
-    @UploadedFile() image: Express.Multer.File,
+  // GET PRODUCTS BY LIMIT: /api/products/limit/:limit/:id
+  @Get('limit/:limit/:id')
+  getProductsByLimit(@Param('limit') limit: string, @Param('id') id: string) {
+    return this.productsService.getProductsByLimit(limit, id);
+  }
+
+  // DELETE IMAGE FROM PRODUCT: /api/products/image/:id/:image
+  @Delete('image/:id/:image')
+  deleteImageFromProduct(
+    @Param('id') id: string,
+    @Param('image') image: string,
   ) {
-    return this.productsService.getProductsByLimit(limit, image);
+    return this.productsService.deleteImageFromProduct(id, image);
   }
 }

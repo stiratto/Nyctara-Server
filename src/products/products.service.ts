@@ -3,7 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { CreateProductDto } from './dto/create-product.dto';
+import { CreateProductDto, CustomFile } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PrismaService } from 'src/products/prisma.service';
 
@@ -49,59 +49,61 @@ export class ProductsService {
 
   async createItemPrisma(
     createProductDto: CreateProductDto,
-    file: Express.Multer.File,
+    file: Express.Multer.File | string,
   ) {
-    const fileExtName = extname(file.originalname);
-
-    const randomname = `${uuidv4()}${fileExtName}`;
-
-    const params = {
-      Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-      Key: randomname,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    };
-
-    const command = new PutObjectCommand(params);
-
     try {
-      await this.s3.send(command);
+      console.log(file);
+      const imagesTransformed: string[] = [];
+
+      // Transform the file into an array of files
+
+      const rawFiles: CustomFile[] | string = file as any;
+      let filesArray: CustomFile[];
+
+      if (typeof rawFiles === 'string') {
+        // Convert string to array if necessary
+        filesArray = rawFiles.split(',').map((fileString) => {
+          // Create a dummy CustomFile object or define your logic to convert string to CustomFile object
+          return {
+            originalname: fileString,
+            buffer: Buffer.from(fileString),
+          } as CustomFile;
+        });
+      } else {
+        filesArray = rawFiles;
+      }
+
+      // Process and upload each file to S3
+      for (const file of filesArray) {
+        const fileExtName = extname(file.originalname);
+        const randomname = `${uuidv4()}${fileExtName}`;
+
+        const params = {
+          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+          Key: randomname,
+          Body: file.buffer,
+        };
+
+        const command = new PutObjectCommand(params);
+
+        await this.s3.send(command);
+
+        imagesTransformed.push(command.input.Key);
+      }
 
       // Convert the tags to an array
-      const rawTags = createProductDto.tags;
-
-      // Define a new array to store the tags
-      let tagsArray: string[];
-      // If the type of the tags is a string, split it into an array
-      if (typeof rawTags === 'string') {
-        /* 
-          split() works as the following:
-          - If the string is "tag1 tag2 tag3", the result will be an array with 3 elements (each word within the string) (depending on what the separator is, if it's a space, then split(' ), if it's a comma, then split(','), etc.)
-        */
-        tagsArray = rawTags.split(' ');
-      } else {
-        // If it's already an array, use it as is
-        tagsArray = rawTags;
-      }
+      const tagsArray =
+        typeof createProductDto.tags === 'string'
+          ? createProductDto.tags.split(' ')
+          : createProductDto.tags;
 
       // Convert the notes to an array
+      const notesArray =
+        typeof createProductDto.notes === 'string'
+          ? createProductDto.notes.split(' ')
+          : createProductDto.notes;
 
-      let rawNotes = createProductDto.notes;
-
-      let notesArray: string[];
-
-      if (typeof rawNotes === 'string') {
-        /* 
-          split() works as the following:
-          - If the string is "note1 note2 note3", the result will be an array with 3 elements (each word within the string) (depending on what the separator is, if it's a space, then split(' ), if it's a comma, then split(','), etc.)
-        */
-        notesArray = rawNotes.split(' ');
-      } else {
-        // If it's already an array, use it as is
-        notesArray = rawNotes;
-      }
-
-
+      // Create the product
       const product = await this.prisma.product.create({
         data: {
           name: createProductDto.name,
@@ -113,331 +115,106 @@ export class ProductsService {
             },
           },
           price: createProductDto.price,
-          image: command.input.Key,
+          images: imagesTransformed,
           tags: tagsArray,
         },
       });
 
       return product;
     } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          ' (status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
-    }
-  }
-
-  async createNewCategory(category_name: string, file: Express.Multer.File) {
-    const newCategoryName = category_name['category_name'];
-
-    const fileExtName = extname(file.originalname);
-
-    const randomname = `${uuidv4()}${fileExtName}`;
-
-    const params = {
-      Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-      Key: randomname,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    };
-
-    const command = new PutObjectCommand(params);
-
-    try {
-      await this.s3.send(command);
-
-      const category = await this.prisma.category.create({
-        data: {
-          category_name: newCategoryName,
-          image: command.input.Key,
-        },
-      });
-
-      return category;
-    } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          '(status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
-    }
-  }
-
-  async findAllCategories() {
-    try {
-      const categories = await this.prisma.category.findMany();
-      for (const category of categories) {
-        const getObjectParams = {
-          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-          Key: category.image,
-        };
-
-        const command = new GetObjectCommand(getObjectParams);
-        const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-        category.imageUrl = url;
-      }
-      return categories;
-    } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          '(status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
-    }
-  }
-
-  async findAllItemsPrisma() {
-    try {
-      const products = await this.prisma.product.findMany();
-
-      for (const product of products) {
-        // Get the category of the product
-        const category = await this.prisma.category.findUnique({
-          where: {
-            id: product.categoryId,
-          },
-        });
-
-        const getObjectParams = {
-          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-          Key: product.image,
-        };
-
-        const command = new GetObjectCommand(getObjectParams);
-        const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-        product.imageUrl = url;
-        (product as any).category = category;
-      }
-
-      return products;
-    } catch (err) {
-      new InternalServerErrorException(
-        'Hubo un error' + err.message + err.statusCode,
-      );
-    }
-  }
-
-  async findSingleProduct(id: string) {
-    try {
-      const product = await this.prisma.product.findFirst({
-        where: {
-          id: id,
-        },
-        include: {
-          category: {
-            select: {
-              category_name: true,
-              id: true,
-            },
-          },
-        },
-      });
-
-      const getObjectParams = {
-        Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-        Key: product.image,
-      };
-
-      const command = new GetObjectCommand(getObjectParams);
-      const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-      product.imageUrl = url;
-
-      return product;
-    } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          '(status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
-    }
-  }
-
-  async getCartImage(id: string): Promise<string> {
-    const product = await this.prisma.product.findFirst({
-      where: {
-        id: id,
-      },
-    });
-
-    try {
-      const getObjectParams = {
-        Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-        Key: product.image,
-      };
-
-      const command = new GetObjectCommand(getObjectParams);
-      const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-      return url;
-    } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          '(status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
-    }
-  }
-
-  async findSingleCategory(id: string) {
-    try {
-      const category = await this.prisma.category.findFirst({
-        where: {
-          id: id,
-        },
-      });
-
-      const params = {
-        Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-        Key: category.image,
-      };
-
-      const command = new GetObjectCommand(params);
-
-      try {
-        const products = await this.prisma.product.findMany({
-          where: {
-            categoryId: category.id,
-          },
-        });
-
-        for (const product of products) {
-          const getObjectParams = {
-            Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-            Key: product.image,
-          };
-
-          const command = new GetObjectCommand(getObjectParams);
-          const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-          product.imageUrl = url;
-        }
-        return products;
-      } catch (err) {
-        throw new InternalServerErrorException(
-          'Hubo un error: ' +
-            err.message +
-            '(status: ' +
-            (err.statusCode || 'desconocido') +
-            ')',
-        );
-      }
-    } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          '(status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
+      console.error(err);
+      throw new InternalServerErrorException();
     }
   }
 
   async updateProduct(
     id: string,
     updateProductDto: UpdateProductDto,
-    image: Express.Multer.File,
+    images: Express.Multer.File | string,
   ) {
-    if (typeof image.originalname === null) {
-      return 'No se ha enviado el archivo';
-    }
-
-    const fileExtName = extname(image.originalname);
-
-    const randomname = `${uuidv4()}${fileExtName}`;
-
-    const params = {
-      Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-      Key: randomname,
-      Body: image.buffer,
-      ContentType: image.mimetype,
-    };
-
-    const command = new PutObjectCommand(params);
-
     try {
-      await this.s3.send(command);
-
+      // Fetch the existing product
       const productToUpdate = await this.prisma.product.findFirst({
-        where: {
-          id: id,
-        },
+        where: { id: id },
       });
 
       if (!productToUpdate) {
-        throw new BadRequestException('No existe el producto');
+        throw new BadRequestException('Product not found');
       }
 
-      const rawNotes = updateProductDto.notes;
+      // Check if the image is already in the product
 
-      let notesArray: string[];
+      // Transform the file(s) into an array of files
+      const rawFiles: CustomFile[] | string = images as any;
+      const filesArray: CustomFile[] = Array.isArray(rawFiles)
+        ? rawFiles
+        : typeof rawFiles === 'string'
+          ? rawFiles.split(',').map(
+              (fileString) =>
+                ({
+                  originalname: fileString,
+                  buffer: Buffer.from(fileString),
+                }) as CustomFile,
+            )
+          : [];
 
-      if (typeof rawNotes === 'string') {
-        /* 
-          split() works as the following:
-          - If the string is "note1 note2 note3", the result will be an array with 3 elements (each word within the string) (depending on what the separator is, if it's a space, then split(' ), if it's a comma, then split(','), etc.)
-        */
-        notesArray = rawNotes.split(' ');
-      } else {
-        // If it's already an array, use it as is
-        notesArray = rawNotes;
+      // Process and upload each file to S3 if there are new files
+      let imagesTransformed: string[] = [];
+      if (filesArray.length > 0) {
+        imagesTransformed = await Promise.all(
+          filesArray.map(async (file) => {
+            const fileExtName = extname(file.originalname);
+            const randomname = `${uuidv4()}${fileExtName}`;
+            const params = {
+              Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+              Key: randomname,
+              Body: file.buffer,
+            };
+            const command = new PutObjectCommand(params);
+            await this.s3.send(command);
+            return command.input.Key;
+          }),
+        );
       }
 
-      const rawTags = updateProductDto.tags;
+      // Combine existing images with new ones
+      const updatedImages =
+        imagesTransformed.length > 0
+          ? [...productToUpdate.images, ...imagesTransformed]
+          : productToUpdate.images;
 
-      let tagsArray: string[];
+      const tagsArray =
+        typeof updateProductDto.tags === 'string'
+          ? updateProductDto.tags.split(' ')
+          : updateProductDto.tags;
 
-      if (typeof rawTags === 'string') {
-        /* 
-          split() works as the following:
-          - If the string is "tag1 tag2 tag3", the result will be an array with 3 elements (each word within the string) (depending on what the separator is, if it's a space, then split(' ), if it's a comma, then split(','), etc.)
-        */
-        tagsArray = rawTags.split(' ');
-      } else {
-        // If it's already an array, use it as is
-        tagsArray = rawTags;
-      }
+      const notesArray =
+        typeof updateProductDto.notes === 'string'
+          ? updateProductDto.notes.split(' ')
+          : updateProductDto.notes;
 
+      // Update the product
       const productUpdated = await this.prisma.product.update({
-        where: {
-          id: id,
-        },
+        where: { id: id },
         data: {
           name: updateProductDto.name,
           category: {
             connect: {
-              category_name: updateProductDto.category.category_name,
+              category_name: updateProductDto.category_name,
             },
           },
-          image: command.input.Key,
+          images: updatedImages,
           description: updateProductDto.description,
           price: updateProductDto.price,
-          tags: notesArray,
-          notes: tagsArray,
+          tags: tagsArray,
+          notes: notesArray,
         },
       });
 
       return productUpdated;
     } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          ' (status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
+      console.error(err); // Add more context for debugging
+      throw new InternalServerErrorException('Error updating product');
     }
   }
 
@@ -471,25 +248,222 @@ export class ProductsService {
     }
   }
 
-  async getProductsByLimit(limit: string, file: Express.Multer.File) {
+  async findAllItemsPrisma() {
     try {
-      const products = await this.prisma.product.findMany({
-        take: parseInt(limit),
-      });
+      const products = await this.prisma.product.findMany();
+      const imagesUrls: string[] = [];
 
       for (const product of products) {
+        const category = await this.prisma.category.findUnique({
+          where: {
+            id: product.categoryId,
+          },
+        });
+
+        for (const image of product.images) {
+          // Get the category of the product
+
+          const getObjectParams = {
+            Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+            Key: image,
+          };
+
+          const command = new GetObjectCommand(getObjectParams);
+          const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+
+          imagesUrls.push(url);
+
+          product.imageUrl = imagesUrls;
+
+          (product as any).category = category;
+        }
+      }
+
+      return products;
+    } catch (err) {
+      new InternalServerErrorException(
+        'Hubo un error' + err.message + err.statusCode,
+      );
+    }
+  }
+
+  async findSingleProduct(id: string) {
+    try {
+      const product = await this.prisma.product.findFirst({
+        where: {
+          id: id,
+        },
+        include: {
+          category: {
+            select: {
+              category_name: true,
+              id: true,
+            },
+          },
+        },
+      });
+
+      const imagesUrls: string[] = [];
+
+      for (const image of product.images) {
+        console.log(image);
         const getObjectParams = {
           Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-          Key: product.image,
+          Key: image,
         };
 
         const command = new GetObjectCommand(getObjectParams);
         const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
 
-        product.imageUrl = url;
+        console.log(url);
+
+        imagesUrls.push(url);
+        console.log(imagesUrls);
+      }
+      console.log(imagesUrls);
+      product.imageUrl = imagesUrls;
+      return product;
+    } catch (err) {
+      throw new InternalServerErrorException();
+    }
+  }
+
+  /*
+    Categories
+  */
+
+  async createNewCategory(category_name: string, file: Express.Multer.File) {
+    const newCategoryName = category_name['category_name'];
+
+    const fileExtName = extname(file.originalname);
+
+    const randomname = `${uuidv4()}${fileExtName}`;
+
+    const params = {
+      Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+      Key: randomname,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    };
+
+    const command = new PutObjectCommand(params);
+
+    try {
+      await this.s3.send(command);
+
+      const category = await this.prisma.category.create({
+        data: {
+          category_name: newCategoryName,
+          image: command.input.Key,
+        },
+      });
+
+      return category;
+    } catch (err) {
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async findAllCategories() {
+    try {
+      const categories = await this.prisma.category.findMany();
+      for (const category of categories) {
+        const getObjectParams = {
+          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+          Key: category.image,
+        };
+
+        const command = new GetObjectCommand(getObjectParams);
+        const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+
+        category.imageUrl = url;
+      }
+      return categories;
+    } catch (err) {
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async findSingleCategory(id: string) {
+    // Encuentra los productos de una categoria
+    try {
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: id,
+        },
+      });
+
+      if (!category) {
+        throw new InternalServerErrorException('Category not found');
       }
 
-      return products;
+      const bucketName = this.config.get<string>('amazon_s3.bucket_name');
+      if (!bucketName) {
+        throw new InternalServerErrorException('Bucket name not configured');
+      }
+
+      try {
+        const products = await this.prisma.product.findMany({
+          where: {
+            categoryId: category.id,
+          },
+        });
+
+        for (const product of products) {
+          const productImagesUrls: string[] = [];
+          for (const image of product.images) {
+            const getObjectParams = {
+              Bucket: bucketName,
+              Key: image,
+            };
+
+            const command = new GetObjectCommand(getObjectParams);
+            const url = await getSignedUrl(this.s3, command, {
+              expiresIn: 3600,
+            });
+
+            productImagesUrls.push(url);
+          }
+          product.imageUrl = productImagesUrls;
+        }
+
+        return products;
+      } catch (err) {
+        console.error('Error fetching products or generating signed URLs', err);
+        throw new InternalServerErrorException(
+          'Error fetching products or generating signed URLs',
+        );
+      }
+    } catch (err) {
+      console.error('Error fetching category', err);
+      throw new InternalServerErrorException('Error fetching category');
+    }
+  }
+
+  /* 
+    CART AND PRODUCTS
+  */
+
+  async getCartImage(id: string): Promise<string> {
+    const product = await this.prisma.product.findFirst({
+      where: {
+        id: id,
+      },
+    });
+
+    // Just because this function only would take a single image to show in the cart
+    // I just will take the first image of the product
+
+    try {
+      const getObjectParams = {
+        Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+        Key: product.images[0],
+      };
+
+      const command = new GetObjectCommand(getObjectParams);
+      const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+
+      return url;
     } catch (err) {
       throw new InternalServerErrorException(
         'Hubo un error: ' +
@@ -498,6 +472,103 @@ export class ProductsService {
           (err.statusCode || 'desconocido') +
           ')',
       );
+    }
+  }
+
+  async deleteImageFromProduct(id: string, image: string) {
+    try {
+      const product = await this.prisma.product.findFirst({
+        where: {
+          id: id,
+        },
+      });
+
+      if (!product) {
+        throw new BadRequestException('Product not found');
+      }
+
+      const productImages = product.images;
+
+      const index = productImages.indexOf(image);
+
+      if (index === -1) {
+        throw new BadRequestException('Image not found');
+      }
+
+      productImages.splice(index, 1);
+
+      await this.prisma.product.update({
+        where: { id: id },
+        data: {
+          images: productImages,
+        },
+      });
+    } catch (err) {
+      throw new InternalServerErrorException(
+        'Error deleting image from product',
+      );
+    }
+  }
+
+  async getProductsByLimit(limit: string, id: string) {
+    try {
+      const products = await this.prisma.product.findMany({
+        where: {
+          id: {
+            not: id,
+          },
+        },
+
+        take: parseInt(limit),
+      });
+
+      const imagesUrls: string[] = [];
+
+      for (const product of products) {
+        for (const image of product.images) {
+          const getObjectParams = {
+            Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+            Key: image,
+          };
+
+          const command = new GetObjectCommand(getObjectParams);
+          const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+
+          imagesUrls.push(url);
+        }
+        product.imageUrl = imagesUrls;
+      }
+
+      return products;
+    } catch (err) {
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async deleteCategory(id: string) {
+    try {
+      const categoryToDelete = await this.prisma.category.findUnique({
+        where: {
+          id: id,
+        },
+      });
+
+      if (!categoryToDelete) {
+        throw new Error(`Couldn't find a category with that ID (${id})`);
+      }
+
+      const deletedCategory = await this.prisma.category.delete({
+        where: {
+          id: id,
+        },
+      });
+
+      return deletedCategory;
+    } catch (err) {
+      throw new InternalServerErrorException({
+        message: err.message,
+        status: err.status,
+      });
     }
   }
 }
