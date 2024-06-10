@@ -14,6 +14,7 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { CreateDiscountDto } from './dto/create-discount.dto';
 
 @Controller('api/products')
 export class ProductsController {
@@ -114,5 +115,26 @@ export class ProductsController {
     @Param('image') image: string,
   ) {
     return this.productsService.deleteImageFromProduct(id, image);
+  }
+
+  @Get('discounts/getDiscount/:discount_name')
+  getSingleDiscount(@Param('discount_name') discount_name: string) {
+    return this.productsService.getSingleDiscount(discount_name);
+  }
+
+  @Get('discounts/all')
+  getAllDiscounts() {
+    return this.productsService.getAllDiscounts();
+  }
+
+  @Post('discounts/create-discount')
+  createDiscount(@Body() createDiscountDto: CreateDiscountDto) {
+    console.log(createDiscountDto);
+    return this.productsService.createDiscount(createDiscountDto);
+  }
+
+  @Delete('discounts/:id')
+  deleteDiscount(@Param('id') id: string) {
+    return this.productsService.deleteDiscount(id);
   }
 }

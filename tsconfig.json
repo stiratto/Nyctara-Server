@@ -12,10 +12,16 @@
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "baseUrl": "./",
     "incremental": true,
-    "skipLibCheck": true,
+
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
+
+    "lib": ["es6", "dom"],
+
+    "strict": true,
+
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
   }

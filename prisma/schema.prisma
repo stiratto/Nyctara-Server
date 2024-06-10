@@ -33,3 +33,9 @@ model Category {
   imageUrl String?
   products Product[]
 }
+
+model Discount {
+  id    String   @id @default(uuid())
+  discount_name String
+  discount_total String
+}

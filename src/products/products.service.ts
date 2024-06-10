@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateProductDto, CustomFile } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -17,6 +19,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { CreateDiscountDto } from './dto/create-discount.dto';
+import { CustomInternalServerErrorException } from 'src/errors/CustomError';
 @Injectable()
 export class ProductsService {
   /* This lets us use the prisma functions in this service */
@@ -52,7 +56,6 @@ export class ProductsService {
     file: Express.Multer.File | string,
   ) {
     try {
-      console.log(file);
       const imagesTransformed: string[] = [];
 
       // Transform the file into an array of files
@@ -212,9 +215,11 @@ export class ProductsService {
       });
 
       return productUpdated;
-    } catch (err) {
-      console.error(err); // Add more context for debugging
-      throw new InternalServerErrorException('Error updating product');
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -237,14 +242,11 @@ export class ProductsService {
       });
 
       return productDeleted;
-    } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          '(status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -280,10 +282,11 @@ export class ProductsService {
       }
 
       return products;
-    } catch (err) {
-      new InternalServerErrorException(
-        'Hubo un error' + err.message + err.statusCode,
-      );
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -306,7 +309,6 @@ export class ProductsService {
       const imagesUrls: string[] = [];
 
       for (const image of product.images) {
-        console.log(image);
         const getObjectParams = {
           Bucket: this.config.get<string>('amazon_s3.bucket_name'),
           Key: image,
@@ -323,8 +325,11 @@ export class ProductsService {
       console.log(imagesUrls);
       product.imageUrl = imagesUrls;
       return product;
-    } catch (err) {
-      throw new InternalServerErrorException();
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -359,8 +364,11 @@ export class ProductsService {
       });
 
       return category;
-    } catch (err) {
-      throw new InternalServerErrorException();
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -379,8 +387,11 @@ export class ProductsService {
         category.imageUrl = url;
       }
       return categories;
-    } catch (err) {
-      throw new InternalServerErrorException();
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -429,14 +440,13 @@ export class ProductsService {
 
         return products;
       } catch (err) {
-        console.error('Error fetching products or generating signed URLs', err);
-        throw new InternalServerErrorException(
-          'Error fetching products or generating signed URLs',
-        );
+        throw new Error('Error fetching products or generating signed URLs');
       }
-    } catch (err) {
-      console.error('Error fetching category', err);
-      throw new InternalServerErrorException('Error fetching category');
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -464,14 +474,11 @@ export class ProductsService {
       const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
 
       return url;
-    } catch (err) {
-      throw new InternalServerErrorException(
-        'Hubo un error: ' +
-          err.message +
-          '(status: ' +
-          (err.statusCode || 'desconocido') +
-          ')',
-      );
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -503,10 +510,11 @@ export class ProductsService {
           images: productImages,
         },
       });
-    } catch (err) {
-      throw new InternalServerErrorException(
-        'Error deleting image from product',
-      );
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -540,8 +548,11 @@ export class ProductsService {
       }
 
       return products;
-    } catch (err) {
-      throw new InternalServerErrorException();
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -551,9 +562,8 @@ export class ProductsService {
         take: parseInt(limit),
       });
 
-      const imagesUrls: string[] = [];
-
       for (const product of products) {
+        const imagesUrls: string[] = [];
         for (const image of product.images) {
           const getObjectParams = {
             Bucket: this.config.get<string>('amazon_s3.bucket_name'),
@@ -568,9 +578,13 @@ export class ProductsService {
         product.imageUrl = imagesUrls;
       }
 
+      console.log(products);
       return products;
-    } catch (err) {
-      throw new InternalServerErrorException();
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
     }
   }
 
@@ -593,10 +607,87 @@ export class ProductsService {
       });
 
       return deletedCategory;
-    } catch (err) {
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
+    }
+  }
+
+  // DISCOUNTS
+
+  async createDiscount(createDiscountDto: CreateDiscountDto) {
+    try {
+      const discount = await this.prisma.discount.create({
+        data: {
+          discount_name: createDiscountDto.discount_name,
+          discount_total: createDiscountDto.discount_total,
+        },
+      });
+
+      return discount;
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
+      });
+    }
+  }
+
+  async getSingleDiscount(discount_name: string) {
+    try {
+      const discount = await this.prisma.discount.findFirst({
+        where: {
+          discount_name: discount_name,
+        },
+        select: {
+          discount_name: true,
+          discount_total: true,
+        },
+      });
+
+      if (!discount) {
+        throw new NotFoundException({
+          message: 'No se pudo encontrar el descuento',
+          status: 410,
+        });
+      }
+
+      return discount;
+    } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message,
-        status: err.status,
+        status: 500,
+      });
+    }
+  }
+
+  async getAllDiscounts() {
+    try {
+      const discounts = this.prisma.discount.findMany();
+      return discounts;
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message,
+        status: 500,
+      });
+    }
+  }
+
+  async deleteDiscount(id: string) {
+    try {
+      const discount = await this.prisma.discount.delete({
+        where: {
+          id: id,
+        },
+      });
+
+      return discount;
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message as string,
+        status: 500,
       });
     }
   }
