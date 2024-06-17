@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
 }
 
 datasource db {
@@ -39,3 +40,4 @@ model Discount {
   discount_name String
   discount_total String
 }
+

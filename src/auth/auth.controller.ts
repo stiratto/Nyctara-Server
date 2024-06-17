@@ -5,9 +5,9 @@ import {
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Response, Request } from 'express';
+import { Response } from 'express';
 
-@Controller()
+@Controller('/api')
 export class AuthController {
   @Post('/login')
   login(@Body() body: { password: string }, @Res() res: Response) {

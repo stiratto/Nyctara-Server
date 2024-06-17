@@ -9,16 +9,20 @@ import {
   UseInterceptors,
   UploadedFile,
   UploadedFiles,
+  Logger,
+  UsePipes,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { CreateDiscountDto } from './dto/create-discount.dto';
+import { DecodeParamPipe } from 'decode-param.filter';
 
 @Controller('api/products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
+  private readonly logger = new Logger(ProductsController.name);
 
   /*
    CATEGORIES
@@ -36,9 +40,14 @@ export class ProductsController {
   }
 
   // FIND ALL CATEGORIES: /api/products/categories
-  @Get('/categories')
-  findAllCategories() {
-    return this.productsService.findAllCategories();
+  @Get('/categories/:category?')
+  findAllCategories(@Param('category') category: string) {
+    return this.productsService.findAllCategories(category);
+  }
+
+  @Get('search/:word')
+  searchProduct(@Param('word') word: string) {
+    return this.productsService.searchProduct(word);
   }
 
   // FIND SINGLE CATEGORY: /api/products/category/:id
@@ -133,8 +142,15 @@ export class ProductsController {
     return this.productsService.createDiscount(createDiscountDto);
   }
 
+  @Get('/homepage/:name/:limit')
+  getHomepageProducts(@Param('name') name: string, limit: number) {
+    return this.productsService.getHomepageProducts(name, limit);
+  }
+
   @Delete('discounts/:id')
   deleteDiscount(@Param('id') id: string) {
     return this.productsService.deleteDiscount(id);
   }
+
+  // PROMOTIONS
 }

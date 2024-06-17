@@ -8,7 +8,6 @@ import {
 import { CreateProductDto, CustomFile } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PrismaService } from 'src/products/prisma.service';
-
 import {
   GetObjectCommand,
   S3Client,
@@ -20,7 +19,6 @@ import { ConfigService } from '@nestjs/config';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateDiscountDto } from './dto/create-discount.dto';
-import { CustomInternalServerErrorException } from 'src/errors/CustomError';
 @Injectable()
 export class ProductsService {
   /* This lets us use the prisma functions in this service */
@@ -101,9 +99,21 @@ export class ProductsService {
           : createProductDto.tags;
 
       // Convert the notes to an array
+      const splitNotesString = (str: string): string[] => {
+        // Match quoted phrases and individual words
+        const regex = /"([^"]*)"|[^,]+/g;
+        const matches = [];
+        let match;
+        while ((match = regex.exec(str)) !== null) {
+          matches.push(match[1] || match[0]);
+        }
+        return matches;
+      };
+
+      // Convert the notes to an array
       const notesArray =
         typeof createProductDto.notes === 'string'
-          ? createProductDto.notes.split(' ')
+          ? splitNotesString(createProductDto.notes)
           : createProductDto.notes;
 
       // Create the product
@@ -128,6 +138,34 @@ export class ProductsService {
       console.error(err);
       throw new InternalServerErrorException();
     }
+  }
+
+  async searchProduct(word: string) {
+    const result = await this.prisma.product.findMany({
+      where: {
+        name: {
+          search: word,
+        },
+      },
+    });
+
+    for (const product of result) {
+      const imagesUrls: string[] = [];
+      for (const image of product.images) {
+        const getObjectParams = {
+          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+          Key: image,
+        };
+
+        const command = new GetObjectCommand(getObjectParams);
+        const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+
+        imagesUrls.push(url);
+      }
+      product.imageUrl = imagesUrls;
+    }
+
+    return result;
   }
 
   async updateProduct(
@@ -372,10 +410,18 @@ export class ProductsService {
     }
   }
 
-  async findAllCategories() {
+  async findAllCategories(category: string) {
     try {
-      const categories = await this.prisma.category.findMany();
-      for (const category of categories) {
+      const categories = await this.prisma.category.findMany({
+        where: {
+          category_name: {
+            not: category,
+          },
+        },
+      });
+
+      // Array to store all the promises for getting signed URLs
+      const urlPromises = categories.map(async (category) => {
         const getObjectParams = {
           Bucket: this.config.get<string>('amazon_s3.bucket_name'),
           Key: category.image,
@@ -384,8 +430,13 @@ export class ProductsService {
         const command = new GetObjectCommand(getObjectParams);
         const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
 
+        // Assign the URL to the category object
         category.imageUrl = url;
-      }
+      });
+
+      // Wait for all promises to resolve
+      await Promise.all(urlPromises);
+
       return categories;
     } catch (err: any) {
       throw new InternalServerErrorException({
@@ -453,6 +504,48 @@ export class ProductsService {
   /* 
     CART AND PRODUCTS
   */
+
+  async getHomepageProducts(name: string, limit: number) {
+    try {
+      const products = await this.prisma.product.findMany({
+        where: {
+          category: {
+            category_name: name,
+          },
+        },
+        take: limit,
+      });
+
+      if (!products || products.length === 0) {
+        throw new Error('No se pudieron encontrar productos');
+      }
+
+      for (const product of products) {
+        const imagesUrls: string[] = [];
+
+        for (const image of product.images) {
+          const getObjectParams = {
+            Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+            Key: image,
+          };
+
+          const command = new GetObjectCommand(getObjectParams);
+          const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+          imagesUrls.push(url);
+        }
+
+        // Assign the array of URLs to the product's imageUrl property
+        product.imageUrl = imagesUrls;
+      }
+
+      return products;
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: err.message,
+        status: err.status || 500,
+      });
+    }
+  }
 
   async getCartImage(id: string): Promise<string> {
     const product = await this.prisma.product.findFirst({
@@ -530,9 +623,8 @@ export class ProductsService {
         take: parseInt(limit),
       });
 
-      const imagesUrls: string[] = [];
-
       for (const product of products) {
+        const imagesUrls: string[] = [];
         for (const image of product.images) {
           const getObjectParams = {
             Bucket: this.config.get<string>('amazon_s3.bucket_name'),
