@@ -17,12 +17,11 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { CreateDiscountDto } from './dto/create-discount.dto';
-import { DecodeParamPipe } from 'decode-param.filter';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Controller('api/products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
-  private readonly logger = new Logger(ProductsController.name);
 
   /*
    CATEGORIES
@@ -38,11 +37,29 @@ export class ProductsController {
   ) {
     return this.productsService.createNewCategory(category_name, image);
   }
+  a;
 
   // FIND ALL CATEGORIES: /api/products/categories
   @Get('/categories/:category?')
   findAllCategories(@Param('category') category: string) {
     return this.productsService.findAllCategories(category);
+  }
+  @Get('/categories/find-category/:id')
+  findSingleCategory(@Param('id') id: string) {
+    return this.productsService.findSingleCategory(id);
+  }
+
+  @Patch('categories/:id')
+  @UseInterceptors(FileInterceptor('image'))
+  updateCategory(
+    @Body('category_name') category_name: string,
+    @Param('id') id: string,
+    @UploadedFile() image: Express.Multer.File | string, // Use @UploadedFiles() for multiple files
+  ) {
+    console.log(id);
+    console.log(category_name);
+    console.log(image);
+    return this.productsService.updateCategory(id, image, category_name);
   }
 
   @Get('search/:word')
@@ -50,10 +67,15 @@ export class ProductsController {
     return this.productsService.searchProduct(word);
   }
 
-  // FIND SINGLE CATEGORY: /api/products/category/:id
+  // FIND SINGLE CATEGORY WITH PRODUCTS: /api/products/category/:id
   @Get('category/:id')
-  findOneCategory(@Param('id') id: string) {
-    return this.productsService.findSingleCategory(id);
+  findOneCategoryWithProducts(@Param('id') id: string) {
+    return this.productsService.findSingleCategoryWithProducts(id);
+  }
+
+  @Get('category/:id')
+  findSingleCategoryWithProducts(@Param('id') id: string) {
+    return this.productsService.findSingleCategoryWithProducts(id);
   }
 
   @Delete('category/:id')

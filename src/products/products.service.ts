@@ -19,6 +19,7 @@ import { ConfigService } from '@nestjs/config';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateDiscountDto } from './dto/create-discount.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 @Injectable()
 export class ProductsService {
   /* This lets us use the prisma functions in this service */
@@ -229,9 +230,19 @@ export class ProductsService {
           ? updateProductDto.tags.split(' ')
           : updateProductDto.tags;
 
+      const splitNotesString = (str: string): string[] => {
+        // Match quoted phrases and individual words
+        const regex = /"([^"]*)"|[^,]+/g;
+        const matches = [];
+        let match;
+        while ((match = regex.exec(str)) !== null) {
+          matches.push(match[1] || match[0]);
+        }
+        return matches;
+      };
       const notesArray =
         typeof updateProductDto.notes === 'string'
-          ? updateProductDto.notes.split(' ')
+          ? splitNotesString(updateProductDto.notes)
           : updateProductDto.notes;
 
       // Update the product
@@ -375,6 +386,69 @@ export class ProductsService {
     Categories
   */
 
+  async updateCategory(
+    id: string,
+    image: Express.Multer.File | string,
+    category_name: string,
+  ) {
+    try {
+      const productToUpdate = await this.prisma.category.findFirst({
+        where: {
+          id: id,
+        },
+      });
+      // Fetch the existing product
+      // Transform the file into a CustomFile object
+      const rawFile: CustomFile | string = image as any;
+      const file: CustomFile | null =
+        typeof rawFile === 'string'
+          ? ({
+              originalname: rawFile,
+              buffer: Buffer.from(rawFile),
+            } as CustomFile)
+          : (rawFile as CustomFile);
+
+      // Process and upload the file to S3 if there is a new file
+      let imageTransformed: string | null = null;
+      if (file) {
+        const fileExtName = extname(file.originalname);
+        const randomname = `${uuidv4()}${fileExtName}`;
+        const params = {
+          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+          Key: randomname,
+          Body: file.buffer,
+        };
+        const command = new PutObjectCommand(params);
+        await this.s3.send(command);
+        imageTransformed = command.input.Key;
+      }
+
+      // Use the new image if it exists, otherwise keep the existing one
+      const updatedImage = imageTransformed
+        ? imageTransformed
+        : productToUpdate.image;
+
+      const update = await this.prisma.category.update({
+        where: {
+          id: id,
+        },
+
+        data: {
+          category_name: category_name,
+          image: updatedImage,
+        },
+      });
+
+      return update;
+
+      // Now you can use the updatedImage for further processing or updating the product in the database
+    } catch (err) {
+      console.log(err);
+    }
+
+    // Combine existing images with new ones
+  }
+
   async createNewCategory(category_name: string, file: Express.Multer.File) {
     const newCategoryName = category_name['category_name'];
 
@@ -447,6 +521,30 @@ export class ProductsService {
   }
 
   async findSingleCategory(id: string) {
+    try {
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: id,
+        },
+      });
+      const getObjectParams = {
+        Bucket: this.config.get<string>('amazon_s3.bucket_name'),
+        Key: category.image,
+      };
+
+      const command = new GetObjectCommand(getObjectParams);
+      const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
+
+      // Assign the URL to the category object
+      category.imageUrl = url;
+
+      return category;
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async findSingleCategoryWithProducts(id: string) {
     // Encuentra los productos de una categoria
     try {
       const category = await this.prisma.category.findFirst({
@@ -613,7 +711,7 @@ export class ProductsService {
 
   async getProductsByLimitExcludingOne(limit: string, id: string) {
     try {
-      const products = await this.prisma.product.findMany({
+      const totalProducts = await this.prisma.product.count({
         where: {
           id: {
             not: id,
@@ -621,6 +719,20 @@ export class ProductsService {
         },
 
         take: parseInt(limit),
+      });
+
+      const randomIndices = Array.from({ length: parseInt(limit) }, () =>
+        Math.floor(Math.random() * totalProducts),
+      );
+
+      const products = await this.prisma.product.findMany({
+        where: {
+          id: {
+            not: id,
+          },
+        },
+        skip: randomIndices[0], // Empieza desde un índice aleatorio
+        take: parseInt(limit), // Toma la cantidad de productos especificada
       });
 
       for (const product of products) {
