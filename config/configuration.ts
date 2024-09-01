@@ -9,4 +9,5 @@ export default () => ({
     access_key: process.env.ACCESS_KEY,
     secret_access_key: process.env.SECRET_ACCESS_KEY,
   },
+  port: process.env.PORT,
 });
