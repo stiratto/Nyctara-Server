@@ -131,6 +131,9 @@ export class ProductsService {
           price: createProductDto.price,
           images: imagesTransformed,
           tags: tagsArray,
+          product_quality: createProductDto.product_quality as
+            | 'ORIGINAL'
+            | 'REACONDICIONADO',
         },
       });
 
@@ -260,6 +263,9 @@ export class ProductsService {
           price: updateProductDto.price,
           tags: tagsArray,
           notes: notesArray,
+          product_quality: updateProductDto.product_quality as
+            | 'ORIGINAL'
+            | 'REACONDICIONADO',
         },
       });
 

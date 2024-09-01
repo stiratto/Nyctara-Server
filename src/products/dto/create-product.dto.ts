@@ -12,6 +12,7 @@ export class CreateProductDto {
     id: string;
     category_name: string;
   };
+  product_quality: string;
   notes: string[] | string;
   tags: string[] | string;
   images: CustomFile[] | string;

@@ -25,6 +25,7 @@ model Product {
   imageUrl String[]
   category Category @relation(fields: [categoryId], references: [id])
   categoryId String
+  product_quality PRODUCT_QUALITY @default(REACONDICIONADO)
 }
 
 model Category {
@@ -39,5 +40,11 @@ model Discount {
   id    String   @id @default(uuid())
   discount_name String
   discount_total String
+}
+
+enum PRODUCT_QUALITY {
+  ORIGINAL
+  REACONDICIONADO
+  
 }
 
