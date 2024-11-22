@@ -372,12 +372,8 @@ export class ProductsService {
         const command = new GetObjectCommand(getObjectParams);
         const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
 
-        console.log(url);
-
         imagesUrls.push(url);
-        console.log(imagesUrls);
       }
-      console.log(imagesUrls);
       product.imageUrl = imagesUrls;
       return product;
     } catch (err: any) {
@@ -564,6 +560,7 @@ export class ProductsService {
       }
 
       const bucketName = this.config.get<string>('amazon_s3.bucket_name');
+
       if (!bucketName) {
         throw new InternalServerErrorException('Bucket name not configured');
       }
@@ -595,6 +592,8 @@ export class ProductsService {
 
         return products;
       } catch (err) {
+        console.log(err);
+
         throw new Error('Error fetching products or generating signed URLs');
       }
     } catch (err: any) {
@@ -788,7 +787,6 @@ export class ProductsService {
         product.imageUrl = imagesUrls;
       }
 
-      console.log(products);
       return products;
     } catch (err: any) {
       throw new InternalServerErrorException({
