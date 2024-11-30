@@ -13,7 +13,8 @@ export class CreateProductDto {
     category_name: string;
   };
   product_quality: string;
-  notes: string[] | string;
-  tags: string[] | string;
-  images: CustomFile[] | string;
+  notes: string[];
+  tags: string[];
+  existingImages: string[];
+  newImages: CustomFile[] | string;
 }
