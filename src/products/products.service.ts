@@ -1,29 +1,27 @@
 import {
-  BadRequestException,
-  HttpException,
-  Injectable,
+  BadRequestException, Injectable,
   InternalServerErrorException,
-  NotFoundException,
+  NotFoundException
 } from '@nestjs/common';
 import { CreateProductDto, CustomFile } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { PrismaService } from 'src/products/prisma.service';
 import {
   GetObjectCommand,
   S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
+  PutObjectCommand
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { Product, ProductFiles } from './interfaces/product.interfaces';
+import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class ProductsService {
   /* This lets us use the prisma functions in this service */
   constructor(
-    private prisma: PrismaService,
+    private prisma: DatabaseService,
     private config: ConfigService,
   ) {}
 
@@ -51,13 +49,14 @@ export class ProductsService {
 
   async createItemPrisma(
     createProductDto: CreateProductDto,
-    files: Express.Multer.File | string,
+    files: (Express.Multer.File | string)[],
   ) {
     try {
       const imagesTransformed: string[] = [];
 
       // Process and upload each file to S3
-      for (const file of files) {
+      for (let file of files) {
+        file = file as Express.Multer.File
         const fileExtName = extname(file.originalname);
         const randomname = `${uuidv4()}${fileExtName}`;
 
@@ -94,6 +93,14 @@ export class ProductsService {
             | 'ORIGINAL'
             | 'REACONDICIONADO',
         },
+        include: {
+          category: {
+            select: {
+              category_name: true,
+              id: true,
+            }
+          }
+        }
       });
 
       return product;
@@ -109,7 +116,6 @@ export class ProductsService {
         where: { name: { search: word } },
         include: { category: true },
       });
-      console.log(productsFound);
 
       // ASSIGN THE IMAGES FOR EACH PRODUCT
 
@@ -133,8 +139,6 @@ export class ProductsService {
 
       // GET THE CATEGORY OF THE PRODUCT USING THE CATEGORYID
 
-      console.log(productsFound);
-
       return productsFound;
     } catch (error) {
       console.log(error);
@@ -145,7 +149,7 @@ export class ProductsService {
   async updateProduct(
     id: string,
     updateProductDto: UpdateProductDto,
-    files: Express.Multer.File | string,
+    files: ProductFiles,
   ) {
     try {
       const images = files['newImages[]'];
@@ -217,6 +221,14 @@ export class ProductsService {
             | 'ORIGINAL'
             | 'REACONDICIONADO',
         },
+        include: {
+          category: {
+            select: {
+              category_name: true,
+              id: true,
+            }
+          }
+        }
       });
 
       return productUpdated;
@@ -234,6 +246,7 @@ export class ProductsService {
       where: {
         id: id,
       },
+     
     });
 
     if (!productToDelete) {
@@ -245,6 +258,14 @@ export class ProductsService {
         where: {
           id: id,
         },
+        include: {
+          category: {
+            select: {
+              category_name: true,
+              id: true,
+            }
+          }
+        }
       });
 
       return productDeleted;
@@ -285,8 +306,7 @@ export class ProductsService {
 
         imagesUrls.push(url);
       }
-      product.imageUrl = imagesUrls;
-      return product;
+      return {...product, imageUrl: imagesUrls} as Product;
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -305,6 +325,14 @@ export class ProductsService {
         where: {
           category: {
             category_name: name,
+          },
+        },
+        include: {
+          category: {
+            select: {
+              category_name: true,
+              id: true,
+            },
           },
         },
         take: limit,
@@ -371,8 +399,6 @@ export class ProductsService {
 
   async deleteImageFromProduct(id: string, image: string) {
     try {
-      console.log(image);
-
       const product = await this.prisma.product.findFirst({
         where: {
           id: id,

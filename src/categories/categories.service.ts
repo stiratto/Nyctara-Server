@@ -1,28 +1,24 @@
 import {
-  BadRequestException,
-  HttpException,
   Injectable,
-  InternalServerErrorException,
-  NotFoundException,
+  InternalServerErrorException
 } from '@nestjs/common';
-import { PrismaService } from 'src/products/prisma.service';
 import {
   GetObjectCommand,
   S3Client,
   PutObjectCommand,
-  DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { CustomFile } from '../products/dto/create-product.dto';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class CategoriesService {
   constructor(
-    private prisma: PrismaService,
+    private prisma: DatabaseService,
     private config: ConfigService,
   ) {}
 
@@ -92,8 +88,8 @@ export class CategoriesService {
       console.log(err);
     }
   }
-  async createNewCategory(category_name: string, file: Express.Multer.File) {
-    const newCategoryName = category_name['category_name'];
+  async createNewCategory(cat: CreateCategoryDto, file: Express.Multer.File) {
+    const newCategoryName = cat.category_name;
 
     const fileExtName = extname(file.originalname);
 
@@ -224,6 +220,14 @@ export class CategoriesService {
           where: {
             categoryId: category.id,
           },
+          include: {
+            category: {
+              select: {
+                category_name: true,
+                id: true,
+              }
+            }
+          }
         });
 
         for (const product of products) {

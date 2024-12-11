@@ -1,4 +1,4 @@
-export default () => ({
+export const configuration =  () => ({
   secret_password: process.env.SECRET_PASSWORD,
   database: {
     database_url: process.env.DATABASE_URL,

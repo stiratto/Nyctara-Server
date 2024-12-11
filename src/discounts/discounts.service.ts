@@ -1,16 +1,14 @@
 import {
-  BadRequestException,
-  HttpException,
   Injectable,
   InternalServerErrorException,
-  NotFoundException,
+  NotFoundException
 } from '@nestjs/common';
 import { CreateDiscountDto } from './dto/create-discount.dto';
-import { PrismaService } from '../products/prisma.service';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class DiscountsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: DatabaseService) {}
   async createDiscount(createDiscountDto: CreateDiscountDto) {
     try {
       const discount = await this.prisma.discount.create({
@@ -59,7 +57,7 @@ export class DiscountsService {
 
   async getAllDiscounts() {
     try {
-      const discounts = this.prisma.discount.findMany();
+      const discounts = await this.prisma.discount.findMany();
       return discounts;
     } catch (err: any) {
       throw new InternalServerErrorException({

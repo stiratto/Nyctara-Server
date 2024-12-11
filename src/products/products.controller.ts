@@ -3,25 +3,19 @@ import {
   Get,
   Post,
   Body,
-  Patch,
-  Query,
-  Req,
-  Param,
+  Patch, Param,
   Delete,
-  UseInterceptors,
-  UploadedFile,
-  UploadedFiles,
-  Logger,
-  UsePipes,
+  UseInterceptors, UploadedFiles,
+  Logger
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import {
-  FileInterceptor,
   FilesInterceptor,
-  FileFieldsInterceptor,
+  FileFieldsInterceptor
 } from '@nestjs/platform-express';
+import { Product, ProductFiles } from './interfaces/product.interfaces';
 
 @Controller('api/products')
 export class ProductsController {
@@ -32,32 +26,29 @@ export class ProductsController {
   @UseInterceptors(FilesInterceptor('images'))
   create(
     @Body() createProductDto: CreateProductDto,
-    @UploadedFiles() images: Express.Multer.File | string, // Use @UploadedFiles() for multiple files
-  ) {
-    console.log(images);
-
+    @UploadedFiles() images: (Express.Multer.File | string)[], // Use @UploadedFiles() for multiple files
+  ): Promise<Product> {
     Logger.log('::: Products Controller ::: createProduct()');
-
-    return this.productsService.createItemPrisma(createProductDto, images);
+    return this.productsService.createItemPrisma(createProductDto, images)
   }
 
   // /api/products/search/{word: string}
   @Get('search/:word')
-  searchProduct(@Param('word') word: string) {
+  searchProduct(@Param('word') word: string): Promise<Product[]> {
     Logger.log(`::: Products Controller ::: searchProduct() word=${word}`);
     return this.productsService.searchProduct(word);
   }
 
   // GET PRODUCT BY ID: /api/products/:id
   @Get(':id')
-  findSingleProduct(@Param('id') id: string) {
+  findSingleProduct(@Param('id') id: string): Promise<Product> {
     Logger.log(`::: Products Controller ::: findProductById() ID=${id}`);
     return this.productsService.findSingleProduct(id);
   }
 
   // GET CART PRODUCT IMAGE: /api/products/cart/{product: id}
   @Get('cart/:id')
-  getCartImage(@Param('id') id: string) {
+  getCartImage(@Param('id') id: string): Promise<string> {
     Logger.log(
       `::: Products Controller ::: getCartProductImage() - product: ${id}`,
     );
@@ -76,15 +67,15 @@ export class ProductsController {
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
     @UploadedFiles()
-    files: { existingImages?: any; newImages: Express.Multer.File[] },
-  ) {
+    files: ProductFiles,
+  ): Promise<Product> {
     Logger.log(`::: Products Controller ::: updateProduct() product: ${id}`);
     return this.productsService.updateProduct(id, updateProductDto, files);
   }
 
   // DELETE PRODUCT: /api/products/{delete: id}
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string): Promise<Product> {
     Logger.log(`::: Products Controller ::: deleteProduct() - id=${id} `);
 
     return this.productsService.removeProduct(id);
@@ -92,7 +83,7 @@ export class ProductsController {
 
   // /api/products/limit/:limit/:id
   @Get('limit/:limit/:id?')
-  getProductsByLimit(@Param('limit') limit: string, @Param('id') id: string) {
+  getProductsByLimit(@Param('limit') limit: string, @Param('id') id: string): Promise<Product[]> {
     Logger.log('::: Products Controller ::: getProductsByLimit()');
     return this.productsService.getProductsByLimit(limit, id);
   }
@@ -102,20 +93,15 @@ export class ProductsController {
   deleteImageFromProduct(
     @Param('id') id: string,
     @Param('image') image: string,
-  ) {
-    console.log(image);
-
+  ): Promise<void> {
     Logger.log('::: Products Controller ::: deleteImageFromProduct()');
-
     return this.productsService.deleteImageFromProduct(id, image);
   }
 
   @Get('/homepage/:name/:limit')
-  getHomepageProducts(@Param('name') name: string, limit: number) {
+  getHomepageProducts(@Param('name') name: string, limit: number): Promise<Product[]> {
     Logger.log('::: Products Controller ::: getHomepageProducts()');
-
     return this.productsService.getHomepageProducts(name, limit);
   }
 
-  // PROMOTIONS
 }
