@@ -1,20 +1,23 @@
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-} from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
-import { HeadersMiddleware } from './headers/headers.middleware';
 import { DiscountsModule } from './discounts/discounts.module';
-import {configuration} from '../config/configuration';
+import { configuration } from '../config/configuration';
 import { DatabaseModule } from './database/database.module';
+import { BucketModule } from './amazon-bucket/bucket.module';
+import { HeadersMiddleware } from './headers/headers.middleware';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
     AuthModule,
+    JwtModule.register({
+      global: true,
+      secret: `${process.env.JWT_SECRET}`,
+      signOptions: { expiresIn: '60s' },
+    }),
     ConfigModule.forRoot({
       load: [configuration],
       isGlobal: true,
@@ -22,7 +25,8 @@ import { DatabaseModule } from './database/database.module';
     ProductsModule,
     CategoriesModule,
     DiscountsModule,
-    DatabaseModule
+    BucketModule,
+    DatabaseModule,
   ],
 })
 export class AppModule implements NestModule {

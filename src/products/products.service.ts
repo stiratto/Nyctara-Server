@@ -1,51 +1,23 @@
 import {
-  BadRequestException, Injectable,
+  BadRequestException,
+  Injectable,
   InternalServerErrorException,
-  NotFoundException
+  NotFoundException,
 } from '@nestjs/common';
-import { CreateProductDto, CustomFile } from './dto/create-product.dto';
+import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import {
-  GetObjectCommand,
-  S3Client,
-  PutObjectCommand
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { ConfigService } from '@nestjs/config';
-import { extname } from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import { Product, ProductFiles } from './interfaces/product.interfaces';
 import { DatabaseService } from '../database/database.service';
+import { BucketService } from 'src/amazon-bucket/bucket.service';
 
 @Injectable()
 export class ProductsService {
-  /* This lets us use the prisma functions in this service */
+  /*    This lets us use the prisma functions in this service */
   constructor(
     private prisma: DatabaseService,
-    private config: ConfigService,
-  ) {}
-
+    private s3: BucketService,
+  ) { }
   // Define the S3 client that will be used to interact with the S3 bucket
-  private s3 = new S3Client({
-    region: this.config.get<string>('amazon_s3.bucket_region'),
-    credentials: {
-      accessKeyId: this.config.get<string>('amazon_s3.access_key'),
-      secretAccessKey: this.config.get<string>('amazon_s3.secret_access_key'),
-    },
-  });
-
-  /* 
-    - Create a product in the DB:
-
-  
-    - Find all products in the DB
-    - Find a product by id
-    - Update a product by id
-    - Remove a product by id
-
-
-    NOTE: EVERY PRISMA FUNCTION MUST BE ASYNC
-  */
 
   async createItemPrisma(
     createProductDto: CreateProductDto,
@@ -54,26 +26,9 @@ export class ProductsService {
     try {
       const imagesTransformed: string[] = [];
 
-      // Process and upload each file to S3
       for (let file of files) {
-        file = file as Express.Multer.File
-        const fileExtName = extname(file.originalname);
-        const randomname = `${uuidv4()}${fileExtName}`;
-
-        const params = {
-          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-          Key: randomname,
-          Body: file.buffer,
-        };
-
-        const command = new PutObjectCommand(params);
-
-        await this.s3.send(command);
-
-        imagesTransformed.push(command.input.Key);
+        imagesTransformed.push(await this.s3.createFile(file));
       }
-
-      // Convert the notes to an array
 
       // Create the product
       const product = await this.prisma.product.create({
@@ -98,9 +53,9 @@ export class ProductsService {
             select: {
               category_name: true,
               id: true,
-            }
-          }
-        }
+            },
+          },
+        },
       });
 
       return product;
@@ -113,38 +68,24 @@ export class ProductsService {
   async searchProduct(word: string) {
     try {
       const productsFound = await this.prisma.product.findMany({
-        where: { name: { search: word } },
-        include: { category: true },
+        where: {
+          name: { contains: word, mode: 'insensitive' },
+        },
+        include: { category: { select: { category_name: true, id: true } } }
       });
-
       // ASSIGN THE IMAGES FOR EACH PRODUCT
-
       for (const product of productsFound) {
-        const imagesUrls: string[] = [];
-        // GEt the category of the product
-        for (const image of product.images) {
-          const getObjectParams = {
-            Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-            Key: image,
-          };
-
-          const command = new GetObjectCommand(getObjectParams);
-          const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-          imagesUrls.push(url);
-        }
-
-        product.imageUrl = imagesUrls;
+        product.imageUrl = await this.s3.getSignedUrlsFromImages(
+          product.images,
+        ) as string[];
       }
-
-      // GET THE CATEGORY OF THE PRODUCT USING THE CATEGORYID
-
       return productsFound;
     } catch (error) {
       console.log(error);
       throw new NotFoundException(error);
     }
   }
+
 
   async updateProduct(
     id: string,
@@ -160,40 +101,16 @@ export class ProductsService {
       });
 
       if (!productToUpdate) {
-        throw new BadRequestException('Product not found');
+        throw new NotFoundException('Product not found');
       }
-
-      const rawFiles: CustomFile[] | string = images as any;
-
-      const filesArray: CustomFile[] = Array.isArray(rawFiles)
-        ? rawFiles
-        : typeof rawFiles === 'string'
-          ? rawFiles.split(',').map(
-              (fileString) =>
-                ({
-                  originalname: fileString,
-                  buffer: Buffer.from(fileString),
-                }) as CustomFile,
-            )
-          : [];
 
       // Process and upload each file to S3 if there are new files
       let imagesTransformed: string[] = [];
+
       if (images?.length > 0) {
-        imagesTransformed = await Promise.all(
-          filesArray.map(async (file) => {
-            const fileExtName = extname(file.originalname);
-            const randomname = `${uuidv4()}${fileExtName}`;
-            const params = {
-              Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-              Key: randomname,
-              Body: file.buffer,
-            };
-            const command = new PutObjectCommand(params);
-            await this.s3.send(command);
-            return command.input.Key;
-          }),
-        );
+        for (const file of images) {
+          imagesTransformed.push(await this.s3.createFile(file));
+        }
       }
 
       // Combine existing images with new ones
@@ -226,9 +143,9 @@ export class ProductsService {
             select: {
               category_name: true,
               id: true,
-            }
-          }
-        }
+            },
+          },
+        },
       });
 
       return productUpdated;
@@ -246,11 +163,15 @@ export class ProductsService {
       where: {
         id: id,
       },
-     
     });
 
     if (!productToDelete) {
       throw new BadRequestException('No existe el producto');
+    }
+
+    // Delete the images from the s3 bucket
+    for (const image of productToDelete.images) {
+      await this.s3.deleteFile(image);
     }
 
     try {
@@ -263,9 +184,9 @@ export class ProductsService {
             select: {
               category_name: true,
               id: true,
-            }
-          }
-        }
+            },
+          },
+        },
       });
 
       return productDeleted;
@@ -293,20 +214,8 @@ export class ProductsService {
         },
       });
 
-      const imagesUrls: string[] = [];
-
-      for (const image of product.images) {
-        const getObjectParams = {
-          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-          Key: image,
-        };
-
-        const command = new GetObjectCommand(getObjectParams);
-        const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-        imagesUrls.push(url);
-      }
-      return {...product, imageUrl: imagesUrls} as Product;
+      const imagesUrls = await this.s3.getSignedUrlsFromImages(product.images);
+      return { ...product, imageUrl: imagesUrls } as Product;
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -343,21 +252,9 @@ export class ProductsService {
       }
 
       for (const product of products) {
-        const imagesUrls: string[] = [];
-
-        for (const image of product.images) {
-          const getObjectParams = {
-            Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-            Key: image,
-          };
-
-          const command = new GetObjectCommand(getObjectParams);
-          const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-          imagesUrls.push(url);
-        }
-
-        // Assign the array of URLs to the product's imageUrl property
-        product.imageUrl = imagesUrls;
+        product.imageUrl = await this.s3.getSignedUrlsFromImages(
+          product.images,
+        ) as string[];
       }
 
       return products;
@@ -369,26 +266,15 @@ export class ProductsService {
     }
   }
 
-  async getCartImage(id: string): Promise<string> {
+  async getCartImage(id: string): Promise<string[]> {
     const product = await this.prisma.product.findFirst({
       where: {
         id: id,
       },
     });
 
-    // Just because this function only would take a single image to show in the cart
-    // I just will take the first image of the product
-
     try {
-      const getObjectParams = {
-        Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-        Key: product.images[0],
-      };
-
-      const command = new GetObjectCommand(getObjectParams);
-      const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-      return url;
+      return await this.s3.getSignedUrlsFromImages(product.images) as string[];
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -417,6 +303,7 @@ export class ProductsService {
         throw new BadRequestException('Image not found');
       }
 
+      await this.s3.deleteFile(productImages[index]);
       productImages.splice(index, 1);
 
       await this.prisma.product.update({
@@ -437,7 +324,7 @@ export class ProductsService {
     try {
       let products = [];
       if (id) {
-        const products = await this.prisma.product.findMany({
+        products = await this.prisma.product.findMany({
           where: {
             id: {
               not: id,
@@ -446,30 +333,19 @@ export class ProductsService {
           take: parseInt(limit),
         });
       } else {
-        const products = await this.prisma.product.findMany({
+        products = await this.prisma.product.findMany({
           take: parseInt(limit),
         });
       }
 
       for (const product of products) {
-        const imagesUrls: string[] = [];
-        for (const image of product.images) {
-          const getObjectParams = {
-            Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-            Key: image,
-          };
-
-          const command = new GetObjectCommand(getObjectParams);
-          const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-          imagesUrls.push(url);
-        }
-        product.imageUrl = imagesUrls;
+        product.imageUrl = await this.s3.getSignedUrlsFromImages(
+          product.images,
+        );
       }
 
       return products;
     } catch (err: any) {
-      console.log(err);
       throw new InternalServerErrorException({
         message: err.message as string,
         status: 500,

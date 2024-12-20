@@ -1,34 +1,32 @@
 import {
+  forwardRef,
+  Inject,
   Injectable,
-  InternalServerErrorException
+  InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
-import {
-  GetObjectCommand,
-  S3Client,
-  PutObjectCommand,
-} from '@aws-sdk/client-s3';
-import { CustomFile } from '../products/dto/create-product.dto';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { ConfigService } from '@nestjs/config';
-import { extname } from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { DatabaseService } from 'src/database/database.service';
+import { BucketService } from 'src/amazon-bucket/bucket.service';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     private prisma: DatabaseService,
-    private config: ConfigService,
-  ) {}
+    @Inject(forwardRef(() => BucketService)) private s3: BucketService,
+  ) { }
 
-  private s3 = new S3Client({
-    region: this.config.get<string>('amazon_s3.bucket_region'),
-    credentials: {
-      accessKeyId: this.config.get<string>('amazon_s3.access_key'),
-      secretAccessKey: this.config.get<string>('amazon_s3.secret_access_key'),
-    },
-  });
+  isMulterFile(file: any): file is Express.Multer.File {
+    return (
+      file &&
+      typeof file === 'object' &&
+      'fieldname' in file &&
+      'originalname' in file &&
+      'mimetype' in file &&
+      'buffer' in file &&
+      'size' in file
+    );
+  };
 
   async updateCategory(
     id: string,
@@ -41,30 +39,16 @@ export class CategoriesService {
           id: id,
         },
       });
-      // Fetch the existing product
-      // Transform the file into a CustomFile object
-      const rawFile: CustomFile | string = image as any;
-      const file: CustomFile | null =
-        typeof rawFile === 'string'
-          ? ({
-              originalname: rawFile,
-              buffer: Buffer.from(rawFile),
-            } as CustomFile)
-          : (rawFile as CustomFile);
+
 
       // Process and upload the file to S3 if there is a new file
       let imageTransformed: string | null = null;
-      if (file) {
-        const fileExtName = extname(file.originalname);
-        const randomname = `${uuidv4()}${fileExtName}`;
-        const params = {
-          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-          Key: randomname,
-          Body: file.buffer,
-        };
-        const command = new PutObjectCommand(params);
-        await this.s3.send(command);
-        imageTransformed = command.input.Key;
+
+      if (this.isMulterFile(image)) {
+        const file = await this.s3.createFile(image);
+        imageTransformed = await this.s3.getSignedUrlsFromImages(file) as string;
+      } else {
+        imageTransformed = await this.s3.getSignedUrlsFromImages(image) as string;
       }
 
       // Use the new image if it exists, otherwise keep the existing one
@@ -76,7 +60,6 @@ export class CategoriesService {
         where: {
           id: id,
         },
-
         data: {
           category_name: category_name,
           image: updatedImage,
@@ -86,46 +69,40 @@ export class CategoriesService {
       return update;
     } catch (err) {
       console.log(err);
+      throw new InternalServerErrorException("Couldn't update category, an error ocurred", err)
     }
   }
+
   async createNewCategory(cat: CreateCategoryDto, file: Express.Multer.File) {
-    const newCategoryName = cat.category_name;
-
-    const fileExtName = extname(file.originalname);
-
-    const randomname = `${uuidv4()}${fileExtName}`;
-
-    const params = {
-      Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-      Key: randomname,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    };
-
-    const command = new PutObjectCommand(params);
-
     try {
-      await this.s3.send(command);
+      const newCategoryName = cat.category_name;
+
+      let imagesToUpload: string[] = [];
+      imagesToUpload.push(await this.s3.createFile(file));
 
       const category = await this.prisma.category.create({
         data: {
           category_name: newCategoryName,
-          image: command.input.Key,
+          image: imagesToUpload[0],
         },
       });
 
       return category;
-    } catch (err: any) {
-      throw new InternalServerErrorException({
-        message: err.message as string,
-        status: 500,
-      });
+    } catch (error: any) {
+      console.log(error);
+      throw new InternalServerErrorException(error);
     }
   }
 
   async getAllCategories() {
     try {
       const categories = await this.prisma.category.findMany();
+
+      for (const category of categories) {
+        category.imageUrl = await this.s3.getSignedUrlsFromImages(
+          category.image,
+        ) as string;
+      }
 
       return categories;
     } catch (err: any) {
@@ -146,22 +123,12 @@ export class CategoriesService {
         },
       });
 
-      // Array to store all the promises for getting signed URLs
-      const urlPromises = categories.map(async (category) => {
-        const getObjectParams = {
-          Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-          Key: category.image,
-        };
-
-        const command = new GetObjectCommand(getObjectParams);
-        const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-        // Assign the URL to the category object
-        category.imageUrl = url;
+      categories.forEach(async (category) => {
+        const signedImages = await this.s3.getSignedUrlsFromImages(
+          category.image,
+        );
+        category.imageUrl = signedImages as string;
       });
-
-      // Wait for all promises to resolve
-      await Promise.all(urlPromises);
 
       return categories;
     } catch (err: any) {
@@ -179,17 +146,8 @@ export class CategoriesService {
           id: id,
         },
       });
-      const getObjectParams = {
-        Bucket: this.config.get<string>('amazon_s3.bucket_name'),
-        Key: category.image,
-      };
 
-      const command = new GetObjectCommand(getObjectParams);
-      const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-
-      // Assign the URL to the category object
-      category.imageUrl = url;
-
+      category.imageUrl = await this.s3.getSignedUrlsFromImages(category.image) as string;
       return category;
     } catch (error) {
       console.log(error);
@@ -206,13 +164,7 @@ export class CategoriesService {
       });
 
       if (!category) {
-        throw new InternalServerErrorException('Category not found');
-      }
-
-      const bucketName = this.config.get<string>('amazon_s3.bucket_name');
-
-      if (!bucketName) {
-        throw new InternalServerErrorException('Bucket name not configured');
+        throw new NotFoundException('Category not found');
       }
 
       try {
@@ -225,27 +177,16 @@ export class CategoriesService {
               select: {
                 category_name: true,
                 id: true,
-              }
-            }
-          }
+              },
+            },
+          },
         });
 
         for (const product of products) {
-          const productImagesUrls: string[] = [];
-          for (const image of product.images) {
-            const getObjectParams = {
-              Bucket: bucketName,
-              Key: image,
-            };
-
-            const command = new GetObjectCommand(getObjectParams);
-            const url = await getSignedUrl(this.s3, command, {
-              expiresIn: 3600,
-            });
-
-            productImagesUrls.push(url);
-          }
-          product.imageUrl = productImagesUrls;
+          const signedImages = await this.s3.getSignedUrlsFromImages(
+            product.images,
+          );
+          product.imageUrl = signedImages as string[];
         }
 
         return products;
@@ -260,6 +201,7 @@ export class CategoriesService {
       });
     }
   }
+
   async deleteCategory(id: string) {
     try {
       const categoryToDelete = await this.prisma.category.findUnique({
@@ -271,6 +213,8 @@ export class CategoriesService {
       if (!categoryToDelete) {
         throw new Error(`Couldn't find a category with that ID (${id})`);
       }
+
+      await this.s3.deleteFile(categoryToDelete.image);
 
       const deletedCategory = await this.prisma.category.delete({
         where: {

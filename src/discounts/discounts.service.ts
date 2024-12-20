@@ -1,7 +1,8 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
-  NotFoundException
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateDiscountDto } from './dto/create-discount.dto';
 import { DatabaseService } from 'src/database/database.service';
@@ -20,6 +21,7 @@ export class DiscountsService {
 
       return discount;
     } catch (err: any) {
+      console.log(err);
       throw new InternalServerErrorException({
         message: err.message as string,
         status: 500,
@@ -58,6 +60,7 @@ export class DiscountsService {
   async getAllDiscounts() {
     try {
       const discounts = await this.prisma.discount.findMany();
+
       return discounts;
     } catch (err: any) {
       throw new InternalServerErrorException({
@@ -69,6 +72,15 @@ export class DiscountsService {
 
   async deleteDiscount(id: string) {
     try {
+      const discountExists = await this.prisma.discount.findUnique({
+        where: {
+          id: id,
+        },
+      });
+
+      if (!discountExists) {
+        throw new NotFoundException('Discount not found');
+      }
       const discount = await this.prisma.discount.delete({
         where: {
           id: id,

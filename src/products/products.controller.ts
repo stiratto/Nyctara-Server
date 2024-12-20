@@ -2,34 +2,43 @@ import {
   Controller,
   Get,
   Post,
+  UseGuards,
   Body,
-  Patch, Param,
+  Patch,
+  Param,
   Delete,
-  UseInterceptors, UploadedFiles,
-  Logger
+  UseInterceptors,
+  UploadedFiles,
+  Logger,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import {
   FilesInterceptor,
-  FileFieldsInterceptor
+  FileFieldsInterceptor,
 } from '@nestjs/platform-express';
 import { Product, ProductFiles } from './interfaces/product.interfaces';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @Controller('api/products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly productsService: ProductsService) { }
 
   // CREATE PRODUCT: /api/products/create-product
+
+  @UseGuards(AuthGuard)
   @Post('/create-product')
   @UseInterceptors(FilesInterceptor('images'))
   create(
     @Body() createProductDto: CreateProductDto,
-    @UploadedFiles() images: (Express.Multer.File | string)[], // Use @UploadedFiles() for multiple files
+    @UploadedFiles() images: (Express.Multer.File | string)[],
   ): Promise<Product> {
     Logger.log('::: Products Controller ::: createProduct()');
-    return this.productsService.createItemPrisma(createProductDto, images)
+    return this.productsService.createItemPrisma(createProductDto, images);
   }
 
   // /api/products/search/{word: string}
@@ -48,7 +57,7 @@ export class ProductsController {
 
   // GET CART PRODUCT IMAGE: /api/products/cart/{product: id}
   @Get('cart/:id')
-  getCartImage(@Param('id') id: string): Promise<string> {
+  getCartImage(@Param('id') id: string): Promise<string[]> {
     Logger.log(
       `::: Products Controller ::: getCartProductImage() - product: ${id}`,
     );
@@ -56,6 +65,7 @@ export class ProductsController {
   }
 
   // UPDATE PRODUCT: /api/products/{product: id}
+  @UseGuards(AuthGuard)
   @Patch(':id')
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -74,6 +84,7 @@ export class ProductsController {
   }
 
   // DELETE PRODUCT: /api/products/{delete: id}
+  @UseGuards(AuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string): Promise<Product> {
     Logger.log(`::: Products Controller ::: deleteProduct() - id=${id} `);
@@ -83,12 +94,16 @@ export class ProductsController {
 
   // /api/products/limit/:limit/:id
   @Get('limit/:limit/:id?')
-  getProductsByLimit(@Param('limit') limit: string, @Param('id') id: string): Promise<Product[]> {
+  getProductsByLimit(
+    @Param('limit') limit: string,
+    @Param('id') id: string,
+  ): Promise<Product[]> {
     Logger.log('::: Products Controller ::: getProductsByLimit()');
     return this.productsService.getProductsByLimit(limit, id);
   }
 
   // DELETE IMAGE FROM PRODUCT: /api/products/image/:id/:image
+  @UseGuards(AuthGuard)
   @Delete('image/:id/:image')
   deleteImageFromProduct(
     @Param('id') id: string,
@@ -99,9 +114,11 @@ export class ProductsController {
   }
 
   @Get('/homepage/:name/:limit')
-  getHomepageProducts(@Param('name') name: string, limit: number): Promise<Product[]> {
+  getHomepageProducts(
+    @Param('name') name: string,
+    limit: number,
+  ): Promise<Product[]> {
     Logger.log('::: Products Controller ::: getHomepageProducts()');
     return this.productsService.getHomepageProducts(name, limit);
   }
-
 }

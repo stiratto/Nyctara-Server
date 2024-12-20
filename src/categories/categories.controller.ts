@@ -7,7 +7,8 @@ import {
   Param,
   Delete,
   UseInterceptors,
-  UploadedFile, Logger
+  UploadedFile, Logger,
+  UseGuards
 } from '@nestjs/common';
 
 import { CategoriesService } from './categories.service';
@@ -16,18 +17,24 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { Category } from './interfaces/category.interfaces';
 import { Product } from 'src/products/interfaces/product.interfaces';
+import { AuthGuard } from 'src/auth/auth.guard';
+import multer from 'multer';
 
 @Controller('api/categories')
 export class CategoriesController {
-  constructor(private readonly categoriesService: CategoriesService) {}
+  constructor(private readonly categoriesService: CategoriesService) { }
 
   // CREATE NEW CATEGORY: /api/categories/create-category
+  @UseGuards(AuthGuard)
   @Post('/create-category')
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image', {
+    storage: multer.memoryStorage()
+  }))
   createNewCategory(
     @Body() category: CreateCategoryDto,
     @UploadedFile() image: Express.Multer.File,
   ): Promise<Category> {
+    console.log(category)
     Logger.log('::: Category Controller ::: createNewCategory()');
     return this.categoriesService.createNewCategory(category, image);
   }
@@ -53,6 +60,7 @@ export class CategoriesController {
   }
 
   // /api/categories/updateCategory/{category: id}
+  @UseGuards(AuthGuard)
   @Patch('update-category/:id')
   @UseInterceptors(FileInterceptor('image'))
   updateCategory(

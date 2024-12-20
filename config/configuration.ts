@@ -1,5 +1,6 @@
-export const configuration =  () => ({
+export const configuration = () => ({
   secret_password: process.env.SECRET_PASSWORD,
+  jwt_secret: process.env.JWT_SECRET,
   database: {
     database_url: process.env.DATABASE_URL,
   },
@@ -11,3 +12,5 @@ export const configuration =  () => ({
   },
   port: process.env.PORT,
 });
+
+// module.exports = configuration;

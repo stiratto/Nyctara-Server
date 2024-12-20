@@ -1,32 +1,24 @@
 {
   "compilerOptions": {
-    "module": "ESNext",
+    "module": "commonjs",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES6",
+    "target": "ES2020",
     "sourceMap": true,
     "outDir": "./dist",
     "moduleResolution": "node",
     "skipLibCheck": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
-    
-
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "baseUrl": "./",
     "incremental": true,
-
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-
     "lib": ["es6", "dom"],
-
     "strict": true,
-
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false

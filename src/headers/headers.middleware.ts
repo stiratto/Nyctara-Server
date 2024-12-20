@@ -1,9 +1,9 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
-import { NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 
 @Injectable()
 export class HeadersMiddleware implements NestMiddleware {
-  use(req: any, res: any, next: NextFunction) {
+  use(req: Request, res: Response, next: NextFunction) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader(
       'Access-Control-Allow-Methods',
