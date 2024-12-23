@@ -15,14 +15,15 @@ import { AuthGuard } from 'src/auth/auth.guard';
 
 @Controller('api/discounts')
 export class DiscountsController {
-  constructor(private readonly discountsService: DiscountsService) { }
+  constructor(private readonly discountsService: DiscountsService) {}
 
-  @Get('getDiscount/:discount_name')
+  @Get('/:discount_name')
   getSingleDiscount(
     @Param('discount_name') discount_name: string,
   ): Promise<Discount> {
     Logger.log(
-      `::: Discounts Controller ::: getSingleDiscount(): ${discount_name}`)
+      `::: Discounts Controller ::: getSingleDiscount(): ${discount_name}`,
+    );
     return this.discountsService.getSingleDiscount(discount_name);
   }
 

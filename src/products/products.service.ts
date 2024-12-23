@@ -16,7 +16,7 @@ export class ProductsService {
   constructor(
     private prisma: DatabaseService,
     private s3: BucketService,
-  ) { }
+  ) {}
   // Define the S3 client that will be used to interact with the S3 bucket
 
   async createItemPrisma(
@@ -71,13 +71,13 @@ export class ProductsService {
         where: {
           name: { contains: word, mode: 'insensitive' },
         },
-        include: { category: { select: { category_name: true, id: true } } }
+        include: { category: { select: { category_name: true, id: true } } },
       });
       // ASSIGN THE IMAGES FOR EACH PRODUCT
       for (const product of productsFound) {
-        product.imageUrl = await this.s3.getSignedUrlsFromImages(
+        product.imageUrl = (await this.s3.getSignedUrlsFromImages(
           product.images,
-        ) as string[];
+        )) as string[];
       }
       return productsFound;
     } catch (error) {
@@ -85,7 +85,6 @@ export class ProductsService {
       throw new NotFoundException(error);
     }
   }
-
 
   async updateProduct(
     id: string,
@@ -214,8 +213,14 @@ export class ProductsService {
         },
       });
 
+      const categories = await this.prisma.category.findMany();
+
       const imagesUrls = await this.s3.getSignedUrlsFromImages(product.images);
-      return { ...product, imageUrl: imagesUrls } as Product;
+      return {
+        ...product,
+        imageUrl: imagesUrls,
+        categories: categories,
+      } as Product;
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -252,9 +257,9 @@ export class ProductsService {
       }
 
       for (const product of products) {
-        product.imageUrl = await this.s3.getSignedUrlsFromImages(
+        product.imageUrl = (await this.s3.getSignedUrlsFromImages(
           product.images,
-        ) as string[];
+        )) as string[];
       }
 
       return products;
@@ -274,7 +279,9 @@ export class ProductsService {
     });
 
     try {
-      return await this.s3.getSignedUrlsFromImages(product.images) as string[];
+      return (await this.s3.getSignedUrlsFromImages(
+        product.images,
+      )) as string[];
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
