@@ -5,7 +5,6 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
-import { extname } from 'path';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { forwardRef, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +16,7 @@ export class BucketService {
   private s3: S3Client;
   constructor(
     private config: ConfigService,
+    // For circular dependencies
     @Inject(forwardRef(() => CategoriesService)) private categoriesService: CategoriesService
   ) {
     this.s3 = new S3Client({
@@ -25,18 +25,20 @@ export class BucketService {
         accessKeyId: this.config.get<string>('amazon_s3.access_key'),
         secretAccessKey: this.config.get<string>('amazon_s3.secret_access_key'),
       },
+
     });
   }
 
-  async getSignedUrlsFromImages(images: string[] | string): Promise<string[] | string> {
+  async getSignedUrlsFromImages(folder: string, images: string[] | string): Promise<string[] | string> {
     try {
       const bucketName = this.config.get<string>('amazon_s3.bucket_name');
+      console.log(this.config.get<string>('amazon_s3.secret_access_key'))
       if (Array.isArray(images)) {
         return Promise.all(
           images.map(async (image) =>
             getSignedUrl(
               this.s3,
-              new GetObjectCommand({ Bucket: bucketName, Key: image }),
+              new GetObjectCommand({ Bucket: bucketName, Key: `${folder}/${image}` }),
               { expiresIn: 3600 },
             ),
           ),
@@ -44,7 +46,7 @@ export class BucketService {
       } else {
         return getSignedUrl(
           this.s3,
-          new GetObjectCommand({ Bucket: bucketName, Key: images }),
+          new GetObjectCommand({ Bucket: bucketName, Key: `${folder}/${images}` }),
           { expiresIn: 3600 },
         );
       }
@@ -53,16 +55,18 @@ export class BucketService {
     }
   }
 
-  async createFile(file: Express.Multer.File | string): Promise<string> {
+  async createFile(folder: string, file: Express.Multer.File | string): Promise<string> {
     try {
+
       file = file as Express.Multer.File;
+      const img = await sharp(file.buffer).webp({ quality: 60 }).toBuffer()
       const bucketName = this.config.get<string>('amazon_s3.bucket_name');
-      const fileExtName = extname(file.originalname);
-      const randomname = `${uuidv4()}${fileExtName}`;
+      const randomname = `${uuidv4()}.webp`;
       const params = {
         Bucket: bucketName,
-        Key: randomname,
-        Body: file.buffer,
+        Key: `${folder}/${randomname}`,
+        Body: img,
+
       };
       const command = new PutObjectCommand(params);
       await this.s3.send(command);

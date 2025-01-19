@@ -1,6 +1,10 @@
-export interface UpdateCategoryDto {
-  category_name: string;
-  image: string;
-  imageUrl: string;
+import { IsString } from "class-validator"
+
+export class UpdateCategoryDto {
+  @IsString()
   id: string;
+  @IsString()
+  category_name: string;
+  @IsString()
+  image: string;
 }

@@ -1,7 +1,8 @@
+import { IsString } from "class-validator"
+
 export class CreateCategoryDto {
-    category_name: string
-    image: string
-    imageUrl: string
-    id: string
-}
-  
+  @IsString()
+  category_name: string
+  // @IsString()
+  image: string
+} 

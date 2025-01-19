@@ -1,5 +1,5 @@
 import {
-  BadRequestException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -9,9 +9,18 @@ import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class DiscountsService {
-  constructor(private prisma: DatabaseService) {}
+  constructor(private prisma: DatabaseService) { }
   async createDiscount(createDiscountDto: CreateDiscountDto) {
     try {
+      const discountExists = await this.prisma.discount.findFirst(
+        {
+          where:
+            { discount_name: createDiscountDto.discount_name }
+        }
+      )
+      if (discountExists) {
+        throw new InternalServerErrorException("Discount already exists")
+      }
       const discount = await this.prisma.discount.create({
         data: {
           discount_name: createDiscountDto.discount_name,
@@ -21,7 +30,6 @@ export class DiscountsService {
 
       return discount;
     } catch (err: any) {
-      console.log(err);
       throw new InternalServerErrorException({
         message: err.message as string,
         status: 500,
@@ -35,10 +43,7 @@ export class DiscountsService {
         where: {
           discount_name: discount_name,
         },
-        select: {
-          discount_name: true,
-          discount_total: true,
-        },
+
       });
 
       if (!discount) {
@@ -60,9 +65,10 @@ export class DiscountsService {
   async getAllDiscounts() {
     try {
       const discounts = await this.prisma.discount.findMany();
-
+      console.log(discounts)
       return discounts;
     } catch (err: any) {
+      console.log(err)
       throw new InternalServerErrorException({
         message: err.message,
         status: 500,

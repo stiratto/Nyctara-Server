@@ -16,7 +16,7 @@ export class ProductsService {
   constructor(
     private prisma: DatabaseService,
     private s3: BucketService,
-  ) {}
+  ) { }
   // Define the S3 client that will be used to interact with the S3 bucket
 
   async createItemPrisma(
@@ -27,7 +27,7 @@ export class ProductsService {
       const imagesTransformed: string[] = [];
 
       for (let file of files) {
-        imagesTransformed.push(await this.s3.createFile(file));
+        imagesTransformed.push(await this.s3.createFile('products', file));
       }
 
       // Create the product
@@ -67,6 +67,7 @@ export class ProductsService {
 
   async searchProduct(word: string) {
     try {
+      let productsToReturn: Product[];
       const productsFound = await this.prisma.product.findMany({
         where: {
           name: { contains: word, mode: 'insensitive' },
@@ -75,14 +76,38 @@ export class ProductsService {
       });
       // ASSIGN THE IMAGES FOR EACH PRODUCT
       for (const product of productsFound) {
-        product.imageUrl = (await this.s3.getSignedUrlsFromImages(
+        let productToReturn = product
+        productToReturn.images = await this.s3.getSignedUrlsFromImages('products',
           product.images,
-        )) as string[];
+        ) as string[];
+
+        productsToReturn.push(productToReturn)
       }
-      return productsFound;
+
+      return productsToReturn
     } catch (error) {
       console.log(error);
       throw new NotFoundException(error);
+    }
+  }
+
+  async deleteBulkProducts(payload: { products: string[] }) {
+
+    const { products } = payload
+
+    try {
+      const response = await this.prisma.product.deleteMany({
+        where: {
+          id: {
+            in: products
+          }
+        }
+      })
+
+      return response
+    } catch (err) {
+      console.log(err)
+      throw new InternalServerErrorException(err)
     }
   }
 
@@ -108,7 +133,7 @@ export class ProductsService {
 
       if (images?.length > 0) {
         for (const file of images) {
-          imagesTransformed.push(await this.s3.createFile(file));
+          imagesTransformed.push(await this.s3.createFile('products', file));
         }
       }
 
@@ -215,12 +240,12 @@ export class ProductsService {
 
       const categories = await this.prisma.category.findMany();
 
-      const imagesUrls = await this.s3.getSignedUrlsFromImages(product.images);
+      const imagesUrls = await this.s3.getSignedUrlsFromImages('products', product.images);
+      product.images = imagesUrls as string[]
       return {
-        ...product,
-        imageUrl: imagesUrls,
-        categories: categories,
-      } as Product;
+        product,
+        categories
+      };
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -232,6 +257,20 @@ export class ProductsService {
   /* 
     CART AND PRODUCTS
   */
+
+  async getAllProducts() {
+    try {
+      const products = await this.prisma.product.findMany({
+        include: {
+          category: true
+        }
+      })
+      return products
+    } catch (err) {
+      console.log(err)
+      throw new NotFoundException()
+    }
+  }
 
   async getHomepageProducts(name: string, limit: number) {
     try {
@@ -257,7 +296,7 @@ export class ProductsService {
       }
 
       for (const product of products) {
-        product.imageUrl = (await this.s3.getSignedUrlsFromImages(
+        product.images = (await this.s3.getSignedUrlsFromImages('products',
           product.images,
         )) as string[];
       }
@@ -279,9 +318,8 @@ export class ProductsService {
     });
 
     try {
-      return (await this.s3.getSignedUrlsFromImages(
-        product.images,
-      )) as string[];
+      const images = await this.s3.getSignedUrlsFromImages('products', product.images) as string[]
+      return images
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -330,6 +368,7 @@ export class ProductsService {
   async getProductsByLimit(limit: string, id: string) {
     try {
       let products = [];
+      let productsToReturn = []
       if (id) {
         products = await this.prisma.product.findMany({
           where: {
@@ -346,12 +385,14 @@ export class ProductsService {
       }
 
       for (const product of products) {
-        product.imageUrl = await this.s3.getSignedUrlsFromImages(
+        let productToReturn: Product = product
+        productToReturn.images = await this.s3.getSignedUrlsFromImages('products',
           product.images,
-        );
+        ) as string[]
+        productsToReturn.push(productToReturn)
       }
 
-      return products;
+      return productsToReturn;
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,

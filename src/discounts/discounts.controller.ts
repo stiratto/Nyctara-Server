@@ -15,9 +15,9 @@ import { AuthGuard } from 'src/auth/auth.guard';
 
 @Controller('api/discounts')
 export class DiscountsController {
-  constructor(private readonly discountsService: DiscountsService) {}
+  constructor(private readonly discountsService: DiscountsService) { }
 
-  @Get('/:discount_name')
+  @Get('/discount-name/:discount_name')
   getSingleDiscount(
     @Param('discount_name') discount_name: string,
   ): Promise<Discount> {

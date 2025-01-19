@@ -8,6 +8,7 @@ import {
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { BucketService } from 'src/amazon-bucket/bucket.service';
+import { Category, Product } from '@prisma/client';
 
 @Injectable()
 export class CategoriesService {
@@ -45,10 +46,10 @@ export class CategoriesService {
       let imageTransformed: string | null = null;
 
       if (this.isMulterFile(image)) {
-        const file = await this.s3.createFile(image);
-        imageTransformed = await this.s3.getSignedUrlsFromImages(file) as string;
+        const file = await this.s3.createFile('categories', image);
+        imageTransformed = await this.s3.getSignedUrlsFromImages('categories', file) as string;
       } else {
-        imageTransformed = await this.s3.getSignedUrlsFromImages(image) as string;
+        imageTransformed = await this.s3.getSignedUrlsFromImages('categories', image) as string;
       }
 
       // Use the new image if it exists, otherwise keep the existing one
@@ -75,10 +76,11 @@ export class CategoriesService {
 
   async createNewCategory(cat: CreateCategoryDto, file: Express.Multer.File) {
     try {
+      console.log(cat, file)
       const newCategoryName = cat.category_name;
 
       let imagesToUpload: string[] = [];
-      imagesToUpload.push(await this.s3.createFile(file));
+      imagesToUpload.push(await this.s3.createFile('categories', file));
 
       const category = await this.prisma.category.create({
         data: {
@@ -96,15 +98,20 @@ export class CategoriesService {
 
   async getAllCategories() {
     try {
+      let categoriesToReturn: Category[] = [];
       const categories = await this.prisma.category.findMany();
 
       for (const category of categories) {
-        category.imageUrl = await this.s3.getSignedUrlsFromImages(
+        let categoryToReturn = category
+        categoryToReturn.image = await this.s3.getSignedUrlsFromImages('categories',
           category.image,
         ) as string;
+        console.log(categoriesToReturn)
+        categoriesToReturn.push(categoryToReturn)
       }
 
-      return categories;
+      console.log(categoriesToReturn)
+      return categoriesToReturn;
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -115,6 +122,7 @@ export class CategoriesService {
 
   async getAllCategoriesExcludingOne(category: string) {
     try {
+      let categoriesToReturn: Category[];
       const categories = await this.prisma.category.findMany({
         where: {
           category_name: {
@@ -124,13 +132,14 @@ export class CategoriesService {
       });
 
       categories.forEach(async (category) => {
-        const signedImages = await this.s3.getSignedUrlsFromImages(
+        let categoryToReturn = category
+        categoryToReturn.image = await this.s3.getSignedUrlsFromImages('categories',
           category.image,
-        );
-        category.imageUrl = signedImages as string;
+        ) as string;
+        categoriesToReturn.push(categoryToReturn)
       });
 
-      return categories;
+      return categoriesToReturn;
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -141,22 +150,23 @@ export class CategoriesService {
 
   async findCategoryById(id: string) {
     try {
+      let categoryToReturn: Category
       const category = await this.prisma.category.findFirst({
         where: {
           id: id,
         },
       });
-
-      category.imageUrl = await this.s3.getSignedUrlsFromImages(category.image) as string;
-      return category;
+      categoryToReturn = category
+      categoryToReturn.image = await this.s3.getSignedUrlsFromImages('categories', category.image) as string;
+      return categoryToReturn;
     } catch (error) {
       console.log(error);
     }
   }
 
   async findCategoryWithProducts(id: string) {
-    // Encuentra los productos de una categoria
     try {
+      let productsToReturn = [];
       const category = await this.prisma.category.findFirst({
         where: {
           id: id,
@@ -183,13 +193,16 @@ export class CategoriesService {
         });
 
         for (const product of products) {
-          const signedImages = await this.s3.getSignedUrlsFromImages(
+          let productToReturn = product;
+          productToReturn.images = await this.s3.getSignedUrlsFromImages('products',
             product.images,
-          );
-          product.imageUrl = signedImages as string[];
+          ) as string[]
+          productsToReturn.push(productToReturn)
         }
 
-        return products;
+
+
+        return productsToReturn;
       } catch (err) {
         console.log(err);
         throw new Error('Error fetching products or generating signed URLs');

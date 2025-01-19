@@ -10,7 +10,6 @@ import {
   UseInterceptors,
   UploadedFiles,
   Logger,
-  Query,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -21,7 +20,6 @@ import {
 } from '@nestjs/platform-express';
 import { Product, ProductFiles } from './interfaces/product.interfaces';
 import { AuthGuard } from 'src/auth/auth.guard';
-import { Category } from '@prisma/client';
 
 @Controller('api/products')
 export class ProductsController {
@@ -40,11 +38,10 @@ export class ProductsController {
     return this.productsService.createItemPrisma(createProductDto, images);
   }
 
+  @Get('products')
+  getAllProducts(@Body() ,
+  ) {
 
-  @Get('/')
-  getAllProducts() {
-    Logger.log(`::: Products Controller ::: getAllProducts()`);
-    return this.productsService.getAllProducts()
   }
 
   // /api/products/search/{word: string}
@@ -56,9 +53,7 @@ export class ProductsController {
 
   // GET PRODUCT BY ID: /api/products/:id
   @Get(':id')
-  findSingleProduct(@Param('id') id: string): Promise<{
-    product: Product; categories: Category[]
-  }> {
+  findSingleProduct(@Param('id') id: string): Promise<Product> {
     Logger.log(`::: Products Controller ::: findProductById() ID=${id}`);
     return this.productsService.findSingleProduct(id);
   }
@@ -93,14 +88,12 @@ export class ProductsController {
 
   // DELETE PRODUCT: /api/products/{delete: id}
   @UseGuards(AuthGuard)
-  @Delete('deleteProduct/:id')
+  @Delete(':id')
   remove(@Param('id') id: string): Promise<Product> {
     Logger.log(`::: Products Controller ::: deleteProduct() - id=${id} `);
 
     return this.productsService.removeProduct(id);
   }
-
-
 
   // /api/products/limit/:limit/:id
   @Get('limit/:limit/:id?')
@@ -121,12 +114,6 @@ export class ProductsController {
   ): Promise<void> {
     Logger.log('::: Products Controller ::: deleteImageFromProduct()');
     return this.productsService.deleteImageFromProduct(id, image);
-  }
-
-  @UseGuards(AuthGuard)
-  @Delete('/deleteBulkProducts')
-  deleteBulkProducts(@Body() products: any) {
-    this.productsService.deleteBulkProducts(products)
   }
 
   @Get('/homepage/:name/:limit')

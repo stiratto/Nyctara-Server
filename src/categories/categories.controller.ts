@@ -27,16 +27,15 @@ export class CategoriesController {
   // CREATE NEW CATEGORY: /api/categories/create-category
   @UseGuards(AuthGuard)
   @Post('/create-category')
-  @UseInterceptors(FileInterceptor('image', {
+  @UseInterceptors(FileInterceptor('category_image', {
     storage: multer.memoryStorage()
   }))
   createNewCategory(
     @Body() category: CreateCategoryDto,
-    @UploadedFile() image: Express.Multer.File,
+    @UploadedFile() category_image: Express.Multer.File,
   ): Promise<Category> {
-    console.log(category)
     Logger.log('::: Category Controller ::: createNewCategory()');
-    return this.categoriesService.createNewCategory(category, image);
+    return this.categoriesService.createNewCategory(category, category_image);
   }
 
   // /api/categories/
@@ -58,6 +57,7 @@ export class CategoriesController {
     Logger.log('::: Category Controller ::: findCategoryById()');
     return this.categoriesService.findCategoryById(id);
   }
+
 
   // /api/categories/updateCategory/{category: id}
   @UseGuards(AuthGuard)

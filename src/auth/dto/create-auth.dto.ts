@@ -1,8 +1,6 @@
+import { Exclude } from "class-transformer";
+import { IsString } from "class-validator"
+
 export class CreateAuthDto {
-  id: String;
-  name: String;
-  price: String;
-  image: String;
-  brand: String;
-  tags: String[];
+  password: string;
 }
