@@ -25,6 +25,7 @@ export class DiscountsService {
         data: {
           discount_name: createDiscountDto.discount_name,
           discount_total: createDiscountDto.discount_total,
+          valid_until: createDiscountDto.valid_until
         },
       });
 
@@ -43,10 +44,10 @@ export class DiscountsService {
         where: {
           discount_name: discount_name,
         },
-
       });
 
       if (!discount) {
+        console.log("Discount not found")
         throw new NotFoundException({
           message: 'No se pudo encontrar el descuento',
           status: 410,

@@ -190,6 +190,7 @@ export class CategoriesService {
               },
             },
           },
+
         });
 
         for (const product of products) {

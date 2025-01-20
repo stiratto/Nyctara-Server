@@ -38,6 +38,7 @@ export class DiscountsController {
   createDiscount(
     @Body() createDiscountDto: CreateDiscountDto,
   ): Promise<Discount> {
+    console.log(createDiscountDto)
     Logger.log(`::: Discounts Controller ::: createDiscount()`);
     return this.discountsService.createDiscount(createDiscountDto);
   }

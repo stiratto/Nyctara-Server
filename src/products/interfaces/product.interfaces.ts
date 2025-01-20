@@ -13,8 +13,8 @@ export interface Product {
   images: string[]
   notes: string[];
   tags: string[];
-  createdAt: Date;
-  updatedAt: Date
+  createdAt?: Date;
+  updatedAt?: Date
 }
 
 export interface ProductFiles {

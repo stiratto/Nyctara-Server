@@ -1,11 +1,12 @@
-import { IsString, IsNotEmpty, IsNumberString } from 'class-validator';
+import { Prisma } from '@prisma/client';
+import { IsString, IsNotEmpty, IsNumberString, IsDateString } from 'class-validator';
 
 export class CreateDiscountDto {
   @IsString()
   @IsNotEmpty()
   discount_name: string;
-
-  @IsNumberString()
   @IsNotEmpty()
-  discount_total: string;
+  discount_total: Prisma.Decimal;
+  @IsDateString()
+  valid_until: Date;
 }

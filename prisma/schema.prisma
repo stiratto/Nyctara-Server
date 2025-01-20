@@ -42,6 +42,7 @@ model Discount {
   id             String   @id @default(uuid()) @db.Uuid
   discount_name  String   @db.VarChar(255)
   discount_total Decimal  @default(0.00)
+  valid_until    DateTime 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }

@@ -242,10 +242,8 @@ export class ProductsService {
 
       const imagesUrls = await this.s3.getSignedUrlsFromImages('products', product.images);
       product.images = imagesUrls as string[]
-      return {
-        product,
-        categories
-      };
+      return product
+
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,

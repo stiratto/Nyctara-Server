@@ -56,9 +56,7 @@ export class ProductsController {
 
   // GET PRODUCT BY ID: /api/products/:id
   @Get(':id')
-  findSingleProduct(@Param('id') id: string): Promise<{
-    product: Product; categories: Category[]
-  }> {
+  findSingleProduct(@Param('id') id: string): Promise<Product> {
     Logger.log(`::: Products Controller ::: findProductById() ID=${id}`);
     return this.productsService.findSingleProduct(id);
   }
