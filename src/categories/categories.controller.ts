@@ -23,6 +23,7 @@ import multer from 'multer';
 @Controller('api/categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) { }
+  private readonly logger = new Logger(CategoriesService.name)
 
   // CREATE NEW CATEGORY: /api/categories/create-category
   @UseGuards(AuthGuard)
@@ -34,27 +35,27 @@ export class CategoriesController {
     @Body() category: CreateCategoryDto,
     @UploadedFile() category_image: Express.Multer.File,
   ): Promise<Category> {
-    Logger.log('::: Category Controller ::: createNewCategory()');
+    this.logger.log(`createNewCategory() ${category.category_name}`)
     return this.categoriesService.createNewCategory(category, category_image);
   }
 
   // /api/categories/
   @Get()
   getAllCategories(): Promise<Category[]> {
-    Logger.log('::: Category Controller ::: getAllCategories()');
+    this.logger.log(`getAllCategories()`)
     return this.categoriesService.getAllCategories();
   }
   // /api/categories/{category: id}
   @Get(':category?')
   getAllCategoriesExcludingOne(@Param('category') category: string): Promise<Category[]> {
-    Logger.log('::: Category Controller ::: getAllCategoriesExcludingOne()');
+    this.logger.log(`getAllCategoriesExcludingOne() ${category}`)
     return this.categoriesService.getAllCategoriesExcludingOne(category);
   }
 
   // /api/categories/findCategory/{category: id}
   @Get('find-category/:id')
   findCategoryById(@Param('id') id: string): Promise<Category> {
-    Logger.log('::: Category Controller ::: findCategoryById()');
+    this.logger.log(`findCategoryById() ${id}`)
     return this.categoriesService.findCategoryById(id);
   }
 
@@ -69,6 +70,7 @@ export class CategoriesController {
     @UploadedFile() image: Express.Multer.File | string, // Use @UploadedFiles() for multiple files
   ): Promise<Category> {
     Logger.log('::: Category Controller ::: updateCategory()');
+    this.logger.log(`updateCategory() ${category_name}`)
     return this.categoriesService.updateCategory(id, image, category_name);
   }
 
@@ -76,13 +78,13 @@ export class CategoriesController {
   // /api/categories/findCategoryWithProducts/:id
   @Get('find-category-with-products/:id')
   findCategoryWithProducts(@Param('id') id: string): Promise<Product[]> {
-    Logger.log('::: Category Controller ::: findCategoryWithProducts()');
+    this.logger.log(`findCategoryWithProducts() ${id}`)
     return this.categoriesService.findCategoryWithProducts(id);
   }
   // /api/categories/delete-category/{category: id}
   @Delete('delete-category/:id')
   deleteCategory(@Param('id') id: string): Promise<Category> {
-    Logger.log('::: Category Controller ::: deleteCategory()');
+    this.logger.log(`deleteCategory() ${id}`)
     return this.categoriesService.deleteCategory(id);
   }
 }

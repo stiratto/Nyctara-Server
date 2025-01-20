@@ -17,19 +17,19 @@ import { AuthGuard } from 'src/auth/auth.guard';
 export class DiscountsController {
   constructor(private readonly discountsService: DiscountsService) { }
 
+  private readonly logger = new Logger(DiscountsService.name)
+
   @Get('/discount-name/:discount_name')
   getSingleDiscount(
     @Param('discount_name') discount_name: string,
   ): Promise<Discount> {
-    Logger.log(
-      `::: Discounts Controller ::: getSingleDiscount(): ${discount_name}`,
-    );
+    this.logger.log(`getSingleDiscount() ${discount_name}`)
     return this.discountsService.getSingleDiscount(discount_name);
   }
 
   @Get('all')
   getAllDiscounts(): Promise<Discount[]> {
-    Logger.log(`::: Discounts Controller ::: getAllDiscounts()`);
+    this.logger.log("getAllDiscounts()")
     return this.discountsService.getAllDiscounts();
   }
 
@@ -38,15 +38,14 @@ export class DiscountsController {
   createDiscount(
     @Body() createDiscountDto: CreateDiscountDto,
   ): Promise<Discount> {
-    console.log(createDiscountDto)
-    Logger.log(`::: Discounts Controller ::: createDiscount()`);
+    this.logger.log("createDiscount()")
     return this.discountsService.createDiscount(createDiscountDto);
   }
 
   @UseGuards(AuthGuard)
   @Delete(':id')
   deleteDiscount(@Param('id') id: string): Promise<Discount> {
-    Logger.log(`::: Discounts Controller ::: deleteDiscount(): ${id}`);
+    this.logger.log(`deleteDiscount() ${id}`)
     return this.discountsService.deleteDiscount(id);
   }
 }

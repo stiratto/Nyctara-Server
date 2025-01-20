@@ -26,6 +26,7 @@ import { Category } from '@prisma/client';
 @Controller('api/products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) { }
+  private readonly logger = new Logger(ProductsService.name)
 
   // CREATE PRODUCT: /api/products/create-product
 
@@ -36,37 +37,36 @@ export class ProductsController {
     @Body() createProductDto: CreateProductDto,
     @UploadedFiles() images: (Express.Multer.File | string)[],
   ): Promise<Product> {
-    Logger.log('::: Products Controller ::: createProduct()');
+    this.logger.log("createProduct()")
     return this.productsService.createItemPrisma(createProductDto, images);
   }
 
 
   @Get('/')
   getAllProducts() {
-    Logger.log(`::: Products Controller ::: getAllProducts()`);
+    this.logger.log("getAllProducts()")
     return this.productsService.getAllProducts()
   }
 
   // /api/products/search/{word: string}
   @Get('search/:word')
   searchProduct(@Param('word') word: string): Promise<Product[]> {
-    Logger.log(`::: Products Controller ::: searchProduct() word=${word}`);
+    this.logger.log(`searchProduct() ${word}`)
     return this.productsService.searchProduct(word);
   }
 
   // GET PRODUCT BY ID: /api/products/:id
   @Get(':id')
   findSingleProduct(@Param('id') id: string): Promise<Product> {
-    Logger.log(`::: Products Controller ::: findProductById() ID=${id}`);
+    this.logger.log(`findProductById() ${id}`)
     return this.productsService.findSingleProduct(id);
   }
 
   // GET CART PRODUCT IMAGE: /api/products/cart/{product: id}
   @Get('cart/:id')
   getCartImage(@Param('id') id: string): Promise<string[]> {
-    Logger.log(
-      `::: Products Controller ::: getCartProductImage() - product: ${id}`,
-    );
+
+    this.logger.log(`getCartProductImage() ${id}`)
     return this.productsService.getCartImage(id);
   }
 
@@ -85,7 +85,7 @@ export class ProductsController {
     @UploadedFiles()
     files: ProductFiles,
   ): Promise<Product> {
-    Logger.log(`::: Products Controller ::: updateProduct() product: ${id}`);
+    this.logger.log(`updateProduct() ${id}`)
     return this.productsService.updateProduct(id, updateProductDto, files);
   }
 
@@ -93,8 +93,8 @@ export class ProductsController {
   @UseGuards(AuthGuard)
   @Delete('deleteProduct/:id')
   remove(@Param('id') id: string): Promise<Product> {
-    Logger.log(`::: Products Controller ::: deleteProduct() - id=${id} `);
 
+    this.logger.log(`deleteProduct() ${id}`)
     return this.productsService.removeProduct(id);
   }
 
@@ -106,7 +106,7 @@ export class ProductsController {
     @Param('limit') limit: string,
     @Param('id') id: string,
   ): Promise<Product[]> {
-    Logger.log('::: Products Controller ::: getProductsByLimit()');
+    this.logger.log(`getProductsByLimit() ${limit} ${id}`)
     return this.productsService.getProductsByLimit(limit, id);
   }
 
@@ -118,13 +118,15 @@ export class ProductsController {
     @Param('image') image: string,
   ): Promise<void> {
     Logger.log('::: Products Controller ::: deleteImageFromProduct()');
+    this.logger.log(`deleteImageFromProduct() ${id}`)
     return this.productsService.deleteImageFromProduct(id, image);
   }
 
   @UseGuards(AuthGuard)
   @Delete('/deleteBulkProducts')
   deleteBulkProducts(@Body() products: any) {
-    this.productsService.deleteBulkProducts(products)
+    this.logger.log(`deleteBulkProducts()`)
+    return this.productsService.deleteBulkProducts(products)
   }
 
   @Get('/homepage/:name/:limit')
@@ -132,7 +134,7 @@ export class ProductsController {
     @Param('name') name: string,
     limit: number,
   ): Promise<Product[]> {
-    Logger.log('::: Products Controller ::: getHomepageProducts()');
+    this.logger.log(`getHomepageProducts()`)
     return this.productsService.getHomepageProducts(name, limit);
   }
 }
