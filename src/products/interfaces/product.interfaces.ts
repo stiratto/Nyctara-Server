@@ -1,18 +1,18 @@
 import { Prisma } from "@prisma/client";
 
 export interface Product {
-  name: string;
   id: string;
-  price: Prisma.Decimal;
-  description: string;
-  category: {
+  product_name: string;
+  product_price: Prisma.Decimal;
+  product_description: string;
+  product_category: {
     id: string;
     category_name: string;
   };
   product_quality: string;
-  images: string[]
-  notes: string[];
-  tags: string[];
+  product_images: string[]
+  product_notes: string[];
+  product_tags: string[];
   createdAt?: Date;
   updatedAt?: Date
 }

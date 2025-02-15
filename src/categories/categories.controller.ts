@@ -6,19 +6,16 @@ import {
   Patch,
   Param,
   Delete,
-  UseInterceptors,
-  UploadedFile, Logger,
+  Logger,
   UseGuards
 } from '@nestjs/common';
 
 import { CategoriesService } from './categories.service';
-import { FileInterceptor } from '@nestjs/platform-express';
-
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { Category } from './interfaces/category.interfaces';
 import { Product } from 'src/products/interfaces/product.interfaces';
 import { AuthGuard } from 'src/auth/auth.guard';
-import multer from 'multer';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Controller('api/categories')
 export class CategoriesController {
@@ -28,15 +25,12 @@ export class CategoriesController {
   // CREATE NEW CATEGORY: /api/categories/create-category
   @UseGuards(AuthGuard)
   @Post('/create-category')
-  @UseInterceptors(FileInterceptor('category_image', {
-    storage: multer.memoryStorage()
-  }))
-  createNewCategory(
+  createCategory(
     @Body() category: CreateCategoryDto,
-    @UploadedFile() category_image: Express.Multer.File,
   ): Promise<Category> {
+    console.log(category.category_name)
     this.logger.log(`createNewCategory() ${category.category_name}`)
-    return this.categoriesService.createNewCategory(category, category_image);
+    return this.categoriesService.createCategory(category);
   }
 
   // /api/categories/
@@ -45,6 +39,7 @@ export class CategoriesController {
     this.logger.log(`getAllCategories()`)
     return this.categoriesService.getAllCategories();
   }
+
   // /api/categories/{category: id}
   @Get(':category?')
   getAllCategoriesExcludingOne(@Param('category') category: string): Promise<Category[]> {
@@ -59,19 +54,16 @@ export class CategoriesController {
     return this.categoriesService.findCategoryById(id);
   }
 
-
   // /api/categories/updateCategory/{category: id}
   @UseGuards(AuthGuard)
   @Patch('update-category/:id')
-  @UseInterceptors(FileInterceptor('image'))
   updateCategory(
-    @Body('category_name') category_name: string,
+    @Body() category: UpdateCategoryDto,
     @Param('id') id: string,
-    @UploadedFile() image: Express.Multer.File | string, // Use @UploadedFiles() for multiple files
   ): Promise<Category> {
-    Logger.log('::: Category Controller ::: updateCategory()');
-    this.logger.log(`updateCategory() ${category_name}`)
-    return this.categoriesService.updateCategory(id, image, category_name);
+    console.log(category)
+    this.logger.log(`updateCategory() ${category.category_name}`)
+    return this.categoriesService.updateCategory(id, category);
   }
 
   // FIND SINGLE CATEGORY WITH PRODUCTS:

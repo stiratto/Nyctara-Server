@@ -10,6 +10,7 @@ import { DatabaseService } from 'src/database/database.service';
 @Injectable()
 export class DiscountsService {
   constructor(private prisma: DatabaseService) { }
+
   async createDiscount(createDiscountDto: CreateDiscountDto) {
     try {
       const discountExists = await this.prisma.discount.findFirst(
@@ -19,7 +20,7 @@ export class DiscountsService {
         }
       )
       if (discountExists) {
-        throw new InternalServerErrorException("Discount already exists")
+        throw new InternalServerErrorException("El descuento ya existe")
       }
       const discount = await this.prisma.discount.create({
         data: {
@@ -47,7 +48,6 @@ export class DiscountsService {
       });
 
       if (!discount) {
-        console.log("Discount not found")
         throw new NotFoundException({
           message: 'No se pudo encontrar el descuento',
           status: 410,
@@ -66,7 +66,6 @@ export class DiscountsService {
   async getAllDiscounts() {
     try {
       const discounts = await this.prisma.discount.findMany();
-      console.log(discounts)
       return discounts;
     } catch (err: any) {
       console.log(err)
@@ -86,7 +85,7 @@ export class DiscountsService {
       });
 
       if (!discountExists) {
-        throw new NotFoundException('Discount not found');
+        throw new NotFoundException('No se encontro un descuento con esa ID');
       }
       const discount = await this.prisma.discount.delete({
         where: {

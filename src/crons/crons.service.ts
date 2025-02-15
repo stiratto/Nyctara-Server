@@ -1,4 +1,4 @@
-import { Injectable, Logger, LoggerService } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DatabaseService } from 'src/database/database.service';
 
@@ -19,9 +19,9 @@ export class TasksService {
             valid_until: {
                lte: currentDate
             }
+
          }
       })
-
 
       if (discountsToDelete.length > 0) {
          this.logger.warn(`Deleting discounts: ${discountsToDelete}`);

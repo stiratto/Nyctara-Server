@@ -4,11 +4,13 @@ import { ProductsController } from './products.controller';
 import { DatabaseService } from '../database/database.service';
 import { BucketService } from 'src/amazon-bucket/bucket.service';
 import { CategoriesModule } from 'src/categories/categories.module';
+import { DatabaseModule } from 'src/database/database.module';
+import { BucketModule } from 'src/amazon-bucket/bucket.module';
 
 @Module({
-  imports: [forwardRef(() => CategoriesModule)],
+  imports: [forwardRef(() => CategoriesModule), DatabaseModule, BucketModule],
   controllers: [ProductsController],
-  providers: [ProductsService, DatabaseService, BucketService],
+  providers: [ProductsService],
 })
 
 export class ProductsModule { }

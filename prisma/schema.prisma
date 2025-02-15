@@ -16,13 +16,13 @@ datasource db {
 
 model Product {
   id              String          @id @default(uuid()) @db.Uuid
-  name            String          @db.VarChar(255)
-  description     String          @db.Text
-  notes           String[]
-  price           Decimal         @default(0.00)
-  images          String[]
-  tags            String[]
-  category        Category        @relation(fields: [categoryId], references: [id])
+  product_name            String          @db.VarChar(40)
+  product_description     String          @db.Text
+  product_notes           String[]
+  product_price           Decimal         @default(0.00)
+  product_images          String[]
+  product_tags            String[]
+  product_category        Category        @relation(fields: [categoryId], references: [id])
   categoryId      String          @db.Uuid
   product_quality PRODUCT_QUALITY @default(REACONDICIONADO)
   createdAt       DateTime        @default(now())
@@ -32,7 +32,6 @@ model Product {
 model Category {
   id            String    @id @default(uuid()) @db.Uuid
   category_name String    @unique
-  image         String
   products      Product[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -41,7 +40,7 @@ model Category {
 model Discount {
   id             String   @id @default(uuid()) @db.Uuid
   discount_name  String   @db.VarChar(255)
-  discount_total Decimal  @default(0.00)
+  discount_total Int 
   valid_until    DateTime 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

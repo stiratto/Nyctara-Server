@@ -25,20 +25,23 @@ import { Category } from '@prisma/client';
 
 @Controller('api/products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) { }
+  constructor(
+
+    private readonly productsService: ProductsService
+  ) { }
   private readonly logger = new Logger(ProductsService.name)
 
   // CREATE PRODUCT: /api/products/create-product
 
   @UseGuards(AuthGuard)
   @Post('/create-product')
-  @UseInterceptors(FilesInterceptor('images'))
-  create(
+  @UseInterceptors(FilesInterceptor('product_images'))
+  createProduct(
     @Body() createProductDto: CreateProductDto,
     @UploadedFiles() images: (Express.Multer.File | string)[],
   ): Promise<Product> {
     this.logger.log("createProduct()")
-    return this.productsService.createItemPrisma(createProductDto, images);
+    return this.productsService.createProduct(createProductDto, images);
   }
 
 

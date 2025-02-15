@@ -1,4 +1,6 @@
-import { IsString, IsNotEmptyObject, IsArray } from 'class-validator'
+import { Prisma } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import { IsString, IsNotEmptyObject, IsArray, Length } from 'class-validator'
 
 export interface CustomFile {
   originalname: string;
@@ -7,14 +9,14 @@ export interface CustomFile {
 
 export class CreateProductDto {
   @IsString()
-  name: string;
+  @Length(1, 40, { message: "El nombre debe estar entre 1 y 40 caracteres." })
+  product_name: string;
   @IsString()
-  price: string;
+  product_price: Prisma.Decimal;
   @IsString()
-  description: string;
-  @IsString()
-  category_name: string;
-  category: {
+  product_description: string;
+  @Transform(({ value }) => JSON.parse(value))
+  product_category: {
     id: string;
     category_name: string;
   };
@@ -22,10 +24,11 @@ export class CreateProductDto {
   product_quality: string;
   @IsArray()
   @IsString({ each: true })
-  notes: string[];
+  product_notes: string[];
   @IsArray()
   @IsString({ each: true })
-  tags: string[];
-  existingImages: string[];
-  newImages: CustomFile[] | string;
+  product_tags: string[];
+  //product_images: any[]
+  existingImages?: string[];
+  newImages?: CustomFile[] | string;
 }
