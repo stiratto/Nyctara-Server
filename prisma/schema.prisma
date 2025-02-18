@@ -22,6 +22,7 @@ model Product {
   product_price           Decimal         @default(0.00)
   product_images          String[]
   product_tags            String[]
+  isAvailable             Boolean?         @default(true)
   product_category        Category        @relation(fields: [categoryId], references: [id])
   categoryId      String          @db.Uuid
   product_quality PRODUCT_QUALITY @default(REACONDICIONADO)

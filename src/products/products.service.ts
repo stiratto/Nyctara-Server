@@ -31,6 +31,7 @@ export class ProductsService {
 
       const imagesTransformed: string[] = await Promise.all(files.map((file) => this.s3.createFile('products', file)))
 
+
       // Create the product
       const product = await this.prisma.product.create({
         data: {
@@ -48,6 +49,7 @@ export class ProductsService {
           product_quality: createProductDto.product_quality as
             | 'ORIGINAL'
             | 'REACONDICIONADO',
+          isAvailable: true
         },
         include: {
           product_category: {
@@ -104,11 +106,14 @@ export class ProductsService {
         throw new BadRequestException("No se encontraron productos para eliminar")
       }
 
-      const response = await this.prisma.product.deleteMany({
+      const response = await this.prisma.product.updateMany({
         where: {
           id: {
             in: products
           }
+        },
+        data: {
+          isAvailable: false
         }
       })
 
@@ -200,9 +205,12 @@ export class ProductsService {
     }
 
     try {
-      const productDeleted = await this.prisma.product.delete({
+      const productDeleted = await this.prisma.product.update({
         where: {
           id: id,
+        },
+        data: {
+          isAvailable: false
         },
         include: {
           product_category: {
@@ -252,6 +260,31 @@ export class ProductsService {
         status: 500,
       });
     }
+  }
+
+  async getCartProducts(ids: any) {
+    try {
+      console.log(ids.ids)
+      const parsedIds = ids.ids.split(",")
+
+      const products = await this.prisma.product.findMany({
+        where: {
+          id: {
+            in: parsedIds
+          }
+        }
+      })
+
+      for (let product of products) {
+        product.product_images = await this.s3.getSignedUrlsFromImages('products', product.product_images) as string[]
+      }
+
+
+      return products
+    } catch (error: any) {
+      console.log(error)
+    }
+
   }
 
   /* 

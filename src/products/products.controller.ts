@@ -44,6 +44,12 @@ export class ProductsController {
     return this.productsService.createProduct(createProductDto, images);
   }
 
+  @Get("/cartProducts/:ids")
+  getCartProducts(@Param() ids: string) {
+    this.logger.log("getCartProducts()")
+    return this.productsService.getCartProducts(ids)
+  }
+
 
   @Get('/')
   getAllProducts() {
