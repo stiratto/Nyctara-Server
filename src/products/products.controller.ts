@@ -57,6 +57,23 @@ export class ProductsController {
     return this.productsService.getAllProducts()
   }
 
+  @Get('/filter-products')
+  filterProductsByPrice(
+    @Query("price") price?: string,
+    @Query("availability") availability?: string,
+    @Query("notes") notes?: string[],
+    @Query("time") time?: string,
+  ) {
+    this.logger.log("filterProductsByPrice()")
+    const filters = {
+      price,
+      availability,
+      notes,
+      time
+    }
+    return this.productsService.filterProductsByPrice(filters)
+  }
+
   // /api/products/search/{word: string}
   @Get('search/:word')
   searchProduct(@Param('word') word: string): Promise<Product[]> {

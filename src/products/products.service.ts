@@ -287,9 +287,41 @@ export class ProductsService {
 
   }
 
-  /* 
-    CART AND PRODUCTS
-  */
+  async filterProductsByPrice(filters: Record<
+    "price" | "availability" | "time" | "notes", string | string[] | boolean>) {
+    let { price, notes, availability } = filters
+    let where: any = {}
+
+    if (price) {
+      let priceSplit = (price as string).split(",");
+      let min = parseInt(priceSplit[0]);
+      let max = parseInt(priceSplit[1]);
+
+      if (!isNaN(min) && !isNaN(max)) {
+        where.product_price = { gte: min, lte: max };
+      }
+    }
+
+    if (availability !== undefined) {
+      where.isAvailable = availability;
+    }
+
+    if (notes && Array.isArray(notes)) {
+      where.product_notes = { hasSome: notes };
+    }
+
+
+    const results = await this.prisma.product.findMany({ where })
+
+
+    for (let product of results) {
+      product.product_images = await this.s3.getSignedUrlsFromImages('products', product.product_images) as string[]
+    }
+
+    console.log(results)
+    return results
+
+  }
 
   async getAllProducts() {
     try {
