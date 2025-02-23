@@ -288,9 +288,11 @@ export class ProductsService {
   }
 
   async filterProductsByPrice(filters: Record<
-    "price" | "availability" | "time" | "notes", string | string[] | boolean>) {
+    "price" | "availability" | "notes", string | string[] | boolean>) {
     let { price, notes, availability } = filters
-    let where: any = {}
+    let where: any = {
+      AND: []
+    }
 
     if (price) {
       let priceSplit = (price as string).split(",");
@@ -298,16 +300,16 @@ export class ProductsService {
       let max = parseInt(priceSplit[1]);
 
       if (!isNaN(min) && !isNaN(max)) {
-        where.product_price = { gte: min, lte: max };
+        where.AND.push({ product_price: { gte: min, lte: max } })
       }
     }
 
     if (availability !== undefined) {
-      where.isAvailable = availability;
+      where.AND.push({ isAvailable: availability })
     }
 
     if (notes && Array.isArray(notes)) {
-      where.product_notes = { hasSome: notes };
+      where.AND.push({ product_notes: { hasSome: notes } });
     }
 
 

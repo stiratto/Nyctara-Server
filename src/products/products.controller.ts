@@ -60,17 +60,16 @@ export class ProductsController {
   @Get('/filter-products')
   filterProductsByPrice(
     @Query("price") price?: string,
-    @Query("availability") availability?: string,
+    @Query("availability") availability?: boolean,
     @Query("notes") notes?: string[],
-    @Query("time") time?: string,
   ) {
     this.logger.log("filterProductsByPrice()")
     const filters = {
       price,
       availability,
       notes,
-      time
     }
+    console.log(filters)
     return this.productsService.filterProductsByPrice(filters)
   }
 
