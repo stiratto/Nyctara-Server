@@ -287,7 +287,32 @@ export class ProductsService {
 
   }
 
-  async filterProductsByPrice(filters: Record<
+  async getAllNotes() {
+    try {
+      const notesItems = await this.prisma.product.findMany({
+
+        select: {
+          product_notes: true
+        },
+        distinct: ['product_notes']
+      })
+
+
+
+      // notesItems contains an array with the product notes of each
+      // product without duplicates, so we have to access
+      // product_notes in note (note.product_notes)
+      return notesItems.flatMap((note) => note.product_notes)
+
+
+    } catch (err: any) {
+      console.log(err)
+      this.logger.error(err)
+      throw new InternalServerErrorException(err)
+    }
+  }
+
+  async filterProducts(filters: Record<
     "price" | "availability" | "notes", string | string[] | boolean>) {
     let { price, notes, availability } = filters
     let where: any = {
@@ -308,12 +333,14 @@ export class ProductsService {
       where.AND.push({ isAvailable: availability })
     }
 
-    if (notes && Array.isArray(notes)) {
-      where.AND.push({ product_notes: { hasSome: notes } });
+    if (notes) {
+      let notesArr = (notes as string).split(",")
+      where.AND.push({ product_notes: { hasEvery: notesArr } });
     }
 
 
     const results = await this.prisma.product.findMany({ where })
+
 
 
     for (let product of results) {

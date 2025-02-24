@@ -58,19 +58,19 @@ export class ProductsController {
   }
 
   @Get('/filter-products')
-  filterProductsByPrice(
+  filterProducts(
+
     @Query("price") price?: string,
     @Query("availability") availability?: boolean,
-    @Query("notes") notes?: string[],
+    @Query("notes") notes?: string,
   ) {
-    this.logger.log("filterProductsByPrice()")
+    this.logger.log("filterProducts()")
     const filters = {
       price,
       availability,
       notes,
     }
-    console.log(filters)
-    return this.productsService.filterProductsByPrice(filters)
+    return this.productsService.filterProducts(filters)
   }
 
   // /api/products/search/{word: string}
@@ -78,6 +78,12 @@ export class ProductsController {
   searchProduct(@Param('word') word: string): Promise<Product[]> {
     this.logger.log(`searchProduct() ${word}`)
     return this.productsService.searchProduct(word);
+  }
+
+  @Get('get-all-notes')
+  getAllNotes() {
+    this.logger.log("getAllNotes()")
+    return this.productsService.getAllNotes()
   }
 
   // GET PRODUCT BY ID: /api/products/:id
