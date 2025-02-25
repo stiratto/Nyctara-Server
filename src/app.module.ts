@@ -11,11 +11,11 @@ import { HeadersMiddleware } from './headers/headers.middleware';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './crons/crons.module';
+import { PaymentsModule } from './payment/payment.module';
 
 @Module({
   imports: [
     AuthModule,
-
     ScheduleModule.forRoot(),
     TasksModule,
     JwtModule.register({
@@ -32,6 +32,7 @@ import { TasksModule } from './crons/crons.module';
     DiscountsModule,
     BucketModule,
     DatabaseModule,
+    PaymentsModule
   ],
 })
 export class AppModule implements NestModule {

@@ -11,6 +11,6 @@ export const configuration = () => ({
     secret_access_key: process.env.SECRET_ACCESS_KEY,
   },
   port: process.env.PORT,
+  bold_api_key: process.env.BOLD_API_KEY,
+  bold_api_url: process.env.BOLD_API_URL
 });
-
-// module.exports = configuration;
