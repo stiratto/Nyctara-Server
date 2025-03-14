@@ -12,6 +12,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './crons/crons.module';
 import { PaymentsModule } from './payment/payment.module';
+import { MailingModule } from './mailing/mailing.module';
 
 @Module({
   imports: [
@@ -32,7 +33,8 @@ import { PaymentsModule } from './payment/payment.module';
     DiscountsModule,
     BucketModule,
     DatabaseModule,
-    PaymentsModule
+    PaymentsModule,
+    MailingModule
   ],
 })
 export class AppModule implements NestModule {

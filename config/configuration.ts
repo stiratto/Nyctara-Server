@@ -12,5 +12,7 @@ export const configuration = () => ({
   },
   port: process.env.PORT,
   bold_api_key: process.env.BOLD_API_KEY,
-  bold_api_url: process.env.BOLD_API_URL
-});
+  bold_api_url: process.env.BOLD_API_URL,
+  smtp_gmail_app_password: process.env.SMTP_GMAIL_APP_PASSWORD,
+  smtp_gmail_user: process.env.SMTP_GMAIL_USER,
+}) 

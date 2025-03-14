@@ -47,6 +47,11 @@ model Discount {
   updatedAt      DateTime @updatedAt
 }
 
+model Payments {
+  payment_id String @unique
+}
+
+
 enum PRODUCT_QUALITY {
   ORIGINAL
   REACONDICIONADO

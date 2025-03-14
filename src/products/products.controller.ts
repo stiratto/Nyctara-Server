@@ -57,9 +57,9 @@ export class ProductsController {
     return this.productsService.getAllProducts()
   }
 
-  @Get('/filter-products')
+  @Get('/filter-products/:categoryid')
   filterProducts(
-
+    @Param("categoryid") categoryId: string,
     @Query("price") price?: string,
     @Query("availability") availability?: boolean,
     @Query("notes") notes?: string,
@@ -70,7 +70,7 @@ export class ProductsController {
       availability,
       notes,
     }
-    return this.productsService.filterProducts(filters)
+    return this.productsService.filterProducts(filters, categoryId)
   }
 
   // /api/products/search/{word: string}

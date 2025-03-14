@@ -313,10 +313,10 @@ export class ProductsService {
   }
 
   async filterProducts(filters: Record<
-    "price" | "availability" | "notes", string | string[] | boolean>) {
+    "price" | "availability" | "notes", string | string[] | boolean>, category: string) {
     let { price, notes, availability } = filters
     let where: any = {
-      AND: []
+      AND: [{ categoryId: category }]
     }
 
     if (price) {
@@ -335,7 +335,7 @@ export class ProductsService {
 
     if (notes) {
       let notesArr = (notes as string).split(",")
-      where.AND.push({ product_notes: { hasEvery: notesArr } });
+      where.AND.push({ product_notes: { hasSome: notesArr } });
     }
 
 
