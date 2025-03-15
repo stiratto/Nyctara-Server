@@ -1,28 +1,31 @@
-# Usa la versión LTS de Node.js
-FROM node:lts
+# Usa una imagen ligera de Node.js
+FROM node:18-alpine
 
-# Instala pnpm globalmente
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# Crea y cambia al directorio de la app
+# Establece el directorio de trabajo
 WORKDIR /app
 
-# Copia solo los archivos necesarios primero (mejora la caché de Docker)
-COPY package.json pnpm-lock.yaml ./
+# Copia los archivos esenciales para instalar dependencias
+COPY package.json pnpm-lock.yaml tsconfig.json ./
 
-# Instala dependencias con pnpm
+# Instala PNPM y dependencias
+RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm install --frozen-lockfile
 
-# Copia el resto del código de la aplicación
-COPY . ./
+# Copia el resto del código
+COPY . .
 
 # Genera los clientes de Prisma
 RUN pnpx prisma generate
 
+# Reconstruye las dependencias que necesitan build scripts
+RUN pnpm rebuild
 
-# Compila la app (si es necesario)
+# Compila TypeScript a JavaScript
 RUN pnpm build
 
-# Comando de inicio en producción
-CMD ["pnpm", "start:prod"]
+# Expone el puerto de la app (ajústalo según necesidad)
+EXPOSE 3000
+
+# Comando para iniciar la aplicación
+CMD ["pnpm", "start"]
 
