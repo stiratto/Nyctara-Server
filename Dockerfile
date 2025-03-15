@@ -1,15 +1,24 @@
-# Use the Node official image
-# https://hub.docker.com/_/node
+# Usa la versión LTS de Node.js
 FROM node:lts
 
-# Create and change to the app directory.
+# Instala pnpm globalmente
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Crea y cambia al directorio de la app
 WORKDIR /app
 
-# Copy local code to the container image
+# Copia solo los archivos necesarios primero (mejora la caché de Docker)
+COPY package.json pnpm-lock.yaml ./
+
+# Instala dependencias con pnpm
+RUN pnpm install --frozen-lockfile
+
+# Copia el resto del código de la aplicación
 COPY . ./
 
-# Install packages
-RUN npm ci
+# Compila la app (si es necesario)
+RUN pnpm build
 
-# Serve the app
-CMD ["npm", "run", "start:prod"]
+# Comando de inicio en producción
+CMD ["pnpm", "start:prod"]
+
