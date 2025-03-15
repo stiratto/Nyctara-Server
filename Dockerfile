@@ -16,6 +16,10 @@ RUN pnpm install --frozen-lockfile
 # Copia el resto del código de la aplicación
 COPY . ./
 
+# Genera los clientes de Prisma
+RUN pnpx prisma generate
+
+
 # Compila la app (si es necesario)
 RUN pnpm build
 
