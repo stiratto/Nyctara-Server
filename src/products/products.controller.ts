@@ -22,6 +22,7 @@ import {
 import { Product, ProductFiles } from './interfaces/product.interfaces';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Category } from '@prisma/client';
+import { SkipThrottle, Throttle, ThrottlerException } from '@nestjs/throttler';
 
 @Controller('api/products')
 export class ProductsController {
@@ -39,24 +40,27 @@ export class ProductsController {
   createProduct(
     @Body() createProductDto: CreateProductDto,
     @UploadedFiles() images: (Express.Multer.File | string)[],
-  ): Promise<Product> {
+  ): any {
     this.logger.log("createProduct()")
-    return this.productsService.createProduct(createProductDto, images);
+    // return this.productsService.createProduct(createProductDto, images);
+    throw new ThrottlerException()
   }
 
+  @SkipThrottle()
   @Get("/cartProducts/:ids")
   getCartProducts(@Param() ids: string) {
     this.logger.log("getCartProducts()")
     return this.productsService.getCartProducts(ids)
   }
 
-
+  @SkipThrottle()
   @Get('/')
   getAllProducts() {
     this.logger.log("getAllProducts()")
     return this.productsService.getAllProducts()
   }
 
+  @SkipThrottle()
   @Get('/filter-products/:categoryid')
   filterProducts(
     @Param("categoryid") categoryId: string,
@@ -73,6 +77,7 @@ export class ProductsController {
     return this.productsService.filterProducts(filters, categoryId)
   }
 
+  @SkipThrottle()
   // /api/products/search/{word: string}
   @Get('search/:word')
   searchProduct(@Param('word') word: string): Promise<Product[]> {
@@ -80,6 +85,7 @@ export class ProductsController {
     return this.productsService.searchProduct(word);
   }
 
+  @SkipThrottle()
   @Get('get-all-notes')
   getAllNotes() {
     this.logger.log("getAllNotes()")
@@ -87,6 +93,7 @@ export class ProductsController {
   }
 
   // GET PRODUCT BY ID: /api/products/:id
+  @SkipThrottle()
   @Get(':id')
   findSingleProduct(@Param('id') id: string): Promise<Product> {
     this.logger.log(`findProductById() ${id}`)

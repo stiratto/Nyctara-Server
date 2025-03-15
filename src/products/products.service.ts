@@ -11,6 +11,7 @@ import { Product, ProductFiles } from './interfaces/product.interfaces';
 import { DatabaseService } from '../database/database.service';
 import { BucketService } from 'src/amazon-bucket/bucket.service';
 import { ProductsController } from './products.controller';
+import { ThrottlerException } from '@nestjs/throttler';
 
 @Injectable()
 export class ProductsService {
@@ -18,19 +19,19 @@ export class ProductsService {
   constructor(
     private prisma: DatabaseService,
     private s3: BucketService,
-  ) { }
+  ) {}
   // Define the S3 client that will be used to interact with the S3 bucket
 
-  private readonly logger = new Logger("ProductsService")
+  private readonly logger = new Logger('ProductsService');
 
   async createProduct(
     createProductDto: CreateProductDto,
     files: (Express.Multer.File | string)[],
   ) {
     try {
-
-      const imagesTransformed: string[] = await Promise.all(files.map((file) => this.s3.createFile('products', file)))
-
+      const imagesTransformed: string[] = await Promise.all(
+        files.map((file) => this.s3.createFile('products', file)),
+      );
 
       // Create the product
       const product = await this.prisma.product.create({
@@ -49,7 +50,7 @@ export class ProductsService {
           product_quality: createProductDto.product_quality as
             | 'ORIGINAL'
             | 'REACONDICIONADO',
-          isAvailable: true
+          isAvailable: true,
         },
         include: {
           product_category: {
@@ -62,14 +63,17 @@ export class ProductsService {
       });
 
       if (!product) {
-        this.logger.error("No se pudo crear un producto")
-        throw new InternalServerErrorException("No se pudo crear el producto")
+        this.logger.error('No se pudo crear un producto');
+        throw new InternalServerErrorException('No se pudo crear el producto');
       }
 
-      return product;
+      throw new ThrottlerException();
     } catch (err) {
-      this.logger.error("Ocurrio un error inesperado")
-      throw new InternalServerErrorException("Ocurrio un error inesperado", err);
+      this.logger.error('Ocurrio un error inesperado');
+      throw new InternalServerErrorException(
+        'Ocurrio un error inesperado',
+        err,
+      );
     }
   }
 
@@ -80,47 +84,52 @@ export class ProductsService {
         where: {
           product_name: { contains: word, mode: 'insensitive' },
         },
-        include: { product_category: { select: { category_name: true, id: true } } },
+        include: {
+          product_category: { select: { category_name: true, id: true } },
+        },
       });
       // ASSIGN THE IMAGES FOR EACH PRODUCT
       for (const product of productsFound) {
-        let productToReturn = product
-        productToReturn.product_images = await this.s3.getSignedUrlsFromImages('products',
+        let productToReturn = product;
+        productToReturn.product_images = (await this.s3.getSignedUrlsFromImages(
+          'products',
           product.product_images,
-        ) as string[];
+        )) as string[];
 
-        productsToReturn?.push(productToReturn)
+        productsToReturn?.push(productToReturn);
       }
 
-      return productsToReturn
+      return productsToReturn;
     } catch (error) {
-      this.logger.error("Hubo un error al buscar productos por una palabra")
+      this.logger.error('Hubo un error al buscar productos por una palabra');
       throw new InternalServerErrorException(error);
     }
   }
 
   async deleteBulkProducts(payload: { products: string[] }) {
-    const { products } = payload
+    const { products } = payload;
     try {
       if (products.length === 0) {
-        throw new BadRequestException("No se encontraron productos para eliminar")
+        throw new BadRequestException(
+          'No se encontraron productos para eliminar',
+        );
       }
 
       const response = await this.prisma.product.updateMany({
         where: {
           id: {
-            in: products
-          }
+            in: products,
+          },
         },
         data: {
-          isAvailable: false
-        }
-      })
+          isAvailable: false,
+        },
+      });
 
-      return response
+      return response;
     } catch (err) {
-      console.log(err)
-      throw new InternalServerErrorException(err)
+      console.log(err);
+      throw new InternalServerErrorException(err);
     }
   }
 
@@ -145,7 +154,9 @@ export class ProductsService {
       // Process and upload each file to S3 if there are new files
       let imagesTransformed;
       if (newImages && newImages?.length > 0) {
-        imagesTransformed = await Promise.all(newImages?.map((file) => this.s3.createFile('products', file)));
+        imagesTransformed = await Promise.all(
+          newImages?.map((file) => this.s3.createFile('products', file)),
+        );
       }
 
       // Combine existing images with new ones
@@ -174,14 +185,17 @@ export class ProductsService {
             | 'REACONDICIONADO',
         },
         include: {
-          product_category: true
+          product_category: true,
         },
       });
 
       return productUpdated;
     } catch (err: any) {
-      console.log(err)
-      this.logger.error("Hubo un error al tratar de actualizar un producto", err)
+      console.log(err);
+      this.logger.error(
+        'Hubo un error al tratar de actualizar un producto',
+        err,
+      );
       throw new InternalServerErrorException({
         message: err.message as string,
       });
@@ -210,7 +224,7 @@ export class ProductsService {
           id: id,
         },
         data: {
-          isAvailable: false
+          isAvailable: false,
         },
         include: {
           product_category: {
@@ -224,7 +238,7 @@ export class ProductsService {
 
       return productDeleted;
     } catch (err: any) {
-      this.logger.error("Hubo un error al eliminar un producto", err)
+      this.logger.error('Hubo un error al eliminar un producto', err);
       throw new InternalServerErrorException({
         message: err.message as string,
         status: 500,
@@ -250,10 +264,12 @@ export class ProductsService {
 
       const categories = await this.prisma.category.findMany();
 
-      const imagesUrls = await this.s3.getSignedUrlsFromImages('products', product.product_images);
-      product.product_images = imagesUrls as string[]
-      return product
-
+      const imagesUrls = await this.s3.getSignedUrlsFromImages(
+        'products',
+        product.product_images,
+      );
+      product.product_images = imagesUrls as string[];
+      return product;
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -264,105 +280,105 @@ export class ProductsService {
 
   async getCartProducts(ids: any) {
     try {
-      console.log(ids.ids)
-      const parsedIds = ids.ids.split(",")
+      console.log(ids.ids);
+      const parsedIds = ids.ids.split(',');
 
       const products = await this.prisma.product.findMany({
         where: {
           id: {
-            in: parsedIds
-          }
-        }
-      })
+            in: parsedIds,
+          },
+        },
+      });
 
       for (let product of products) {
-        product.product_images = await this.s3.getSignedUrlsFromImages('products', product.product_images) as string[]
+        product.product_images = (await this.s3.getSignedUrlsFromImages(
+          'products',
+          product.product_images,
+        )) as string[];
       }
 
-
-      return products
+      return products;
     } catch (error: any) {
-      console.log(error)
+      console.log(error);
     }
-
   }
 
   async getAllNotes() {
     try {
       const notesItems = await this.prisma.product.findMany({
-
         select: {
-          product_notes: true
+          product_notes: true,
         },
-        distinct: ['product_notes']
-      })
-
-
+        distinct: ['product_notes'],
+      });
 
       // notesItems contains an array with the product notes of each
       // product without duplicates, so we have to access
       // product_notes in note (note.product_notes)
-      return notesItems.flatMap((note) => note.product_notes)
-
-
+      return notesItems.flatMap((note) => note.product_notes);
     } catch (err: any) {
-      console.log(err)
-      this.logger.error(err)
-      throw new InternalServerErrorException(err)
+      console.log(err);
+      this.logger.error(err);
+      throw new InternalServerErrorException(err);
     }
   }
 
-  async filterProducts(filters: Record<
-    "price" | "availability" | "notes", string | string[] | boolean>, category: string) {
-    let { price, notes, availability } = filters
+  async filterProducts(
+    filters: Record<
+      'price' | 'availability' | 'notes',
+      string | string[] | boolean
+    >,
+    category: string,
+  ) {
+    let { price, notes, availability } = filters;
     let where: any = {
-      AND: [{ categoryId: category }]
-    }
+      AND: [{ categoryId: category }],
+    };
 
     if (price) {
-      let priceSplit = (price as string).split(",");
+      let priceSplit = (price as string).split(',');
       let min = parseInt(priceSplit[0]);
       let max = parseInt(priceSplit[1]);
 
       if (!isNaN(min) && !isNaN(max)) {
-        where.AND.push({ product_price: { gte: min, lte: max } })
+        where.AND.push({ product_price: { gte: min, lte: max } });
       }
     }
 
     if (availability !== undefined) {
-      where.AND.push({ isAvailable: availability })
+      where.AND.push({ isAvailable: availability });
     }
 
     if (notes) {
-      let notesArr = (notes as string).split(",")
+      let notesArr = (notes as string).split(',');
       where.AND.push({ product_notes: { hasSome: notesArr } });
     }
 
-
-    const results = await this.prisma.product.findMany({ where })
-
-
+    const results = await this.prisma.product.findMany({ where });
 
     for (let product of results) {
-      product.product_images = await this.s3.getSignedUrlsFromImages('products', product.product_images) as string[]
+      product.product_images = (await this.s3.getSignedUrlsFromImages(
+        'products',
+        product.product_images,
+      )) as string[];
     }
 
-    console.log(results)
-    return results
-
+    console.log(results);
+    return results;
   }
 
   async getAllProducts() {
     try {
       const products = await this.prisma.product.findMany({
         include: {
-          product_category: true
-        }
-      })
-      return products
+          product_category: true,
+        },
+      });
+      return products;
     } catch (err) {
-      console.log(err)
-      throw new NotFoundException()
+      console.log(err);
+      throw new NotFoundException();
     }
   }
 
@@ -385,7 +401,8 @@ export class ProductsService {
       }
 
       for (const product of products) {
-        product.product_images = (await this.s3.getSignedUrlsFromImages('products',
+        product.product_images = (await this.s3.getSignedUrlsFromImages(
+          'products',
           product.product_images,
         )) as string[];
       }
@@ -407,8 +424,11 @@ export class ProductsService {
     });
 
     try {
-      const images = await this.s3.getSignedUrlsFromImages('products', product.product_images) as string[]
-      return images
+      const images = (await this.s3.getSignedUrlsFromImages(
+        'products',
+        product.product_images,
+      )) as string[];
+      return images;
     } catch (err: any) {
       throw new InternalServerErrorException({
         message: err.message as string,
@@ -457,7 +477,7 @@ export class ProductsService {
   async getProductsByLimit(limit: string, id: string) {
     try {
       let products = [];
-      let productsToReturn = []
+      let productsToReturn = [];
       if (id) {
         products = await this.prisma.product.findMany({
           where: {
@@ -466,7 +486,7 @@ export class ProductsService {
             },
           },
           include: {
-            product_category: true
+            product_category: true,
           },
           take: parseInt(limit),
         });
@@ -477,11 +497,12 @@ export class ProductsService {
       }
 
       for (const product of products) {
-        let productToReturn: Product = product
-        productToReturn.product_images = await this.s3.getSignedUrlsFromImages('products',
+        let productToReturn: Product = product;
+        productToReturn.product_images = (await this.s3.getSignedUrlsFromImages(
+          'products',
           product.product_images,
-        ) as string[]
-        productsToReturn.push(productToReturn)
+        )) as string[];
+        productsToReturn.push(productToReturn);
       }
 
       return productsToReturn;

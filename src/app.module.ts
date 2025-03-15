@@ -13,12 +13,29 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './crons/crons.module';
 import { PaymentsModule } from './payment/payment.module';
 import { MailingModule } from './mailing/mailing.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
     AuthModule,
-    ScheduleModule.forRoot(),
     TasksModule,
+    ProductsModule,
+    CategoriesModule,
+    DiscountsModule,
+    BucketModule,
+    DatabaseModule,
+    PaymentsModule,
+    MailingModule,
+    ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 20000,
+          limit: 10,
+        },
+      ],
+    }),
     JwtModule.register({
       global: true,
       secret: `${process.env.JWT_SECRET}`,
@@ -28,13 +45,12 @@ import { MailingModule } from './mailing/mailing.module';
       load: [configuration],
       isGlobal: true,
     }),
-    ProductsModule,
-    CategoriesModule,
-    DiscountsModule,
-    BucketModule,
-    DatabaseModule,
-    PaymentsModule,
-    MailingModule
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {
