@@ -16,7 +16,7 @@ export class PaymentsService {
             'Content-Type': 'application/json'
          }
 
-         let currentNanoseconds = Date.now() * 1e6; // Convertir milisegundos a nanosegundos
+         let currentNanoseconds = Date.now() * 1e9; // Convertir milisegundos a nanosegundos
          let tenMinutesInNanoseconds = 10 * 60 * 1e9; // 10 minutos en nanosegundos
          let futureNanoseconds = currentNanoseconds + tenMinutesInNanoseconds;
 
@@ -42,7 +42,6 @@ export class PaymentsService {
             body: JSON.stringify(requestBody),
             headers,
          })
-
 
          if (!response.ok) {
             throw new Error(`${response.status} - ${response.statusText}`);

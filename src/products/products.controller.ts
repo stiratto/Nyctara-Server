@@ -34,6 +34,7 @@ export class ProductsController {
 
   // CREATE PRODUCT: /api/products/create-product
 
+
   @UseGuards(AuthGuard)
   @Post('/create-product')
   @UseInterceptors(FilesInterceptor('product_images'))
@@ -42,8 +43,8 @@ export class ProductsController {
     @UploadedFiles() images: (Express.Multer.File | string)[],
   ): any {
     this.logger.log("createProduct()")
-    // return this.productsService.createProduct(createProductDto, images);
-    throw new ThrottlerException()
+    return this.productsService.createProduct(createProductDto, images);
+    //throw new ThrottlerException()
   }
 
   @SkipThrottle()

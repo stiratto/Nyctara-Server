@@ -67,9 +67,10 @@ export class ProductsService {
         throw new InternalServerErrorException('No se pudo crear el producto');
       }
 
-      throw new ThrottlerException();
+      // throw new ThrottlerException();
     } catch (err) {
       this.logger.error('Ocurrio un error inesperado');
+      console.log(err)
       throw new InternalServerErrorException(
         'Ocurrio un error inesperado',
         err,
